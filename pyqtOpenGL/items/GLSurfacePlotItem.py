@@ -84,11 +84,11 @@ class GLSurfacePlotItem(GLGraphicsItem):
             h, w = zmap.shape
             x_size = self._x_size
             y_size = x_size / w * h
-            x = np.linspace(-x_size/2, x_size/2, w, dtype='f2')
-            y = np.linspace(y_size/2, -y_size/2, h, dtype='f2')
+            x = np.linspace(-x_size/2, x_size/2, w, dtype='f4')
+            y = np.linspace(y_size/2, -y_size/2, h, dtype='f4')
 
             xgrid, ygrid = np.meshgrid(x, y, indexing='xy')
-            self._vertexes = np.stack([xgrid, ygrid, zmap.astype('f2')], axis=-1).reshape(-1, 3)
+            self._vertexes = np.stack([xgrid, ygrid, zmap.astype('f4')], axis=-1).reshape(-1, 3)
 
         else:
             self._vertexes[:, 2] = zmap.reshape(-1)
@@ -103,7 +103,7 @@ class GLSurfacePlotItem(GLGraphicsItem):
                     face = self._indices[i]
                     for ind in face:
                         self._vert_to_face[ind].append(i)
-        s = self._vertexes[self._indices]
+
         if self._calc_normals and self._normals is None:
             self._normals = self.vert_normals()
 
@@ -134,7 +134,7 @@ class GLSurfacePlotItem(GLGraphicsItem):
         By default, the array will be (N, 3) with one entry per unique vertex in the mesh.
         """
         faceNorms = self.face_normals()
-        _normals = np.empty(self._vertexes.shape, dtype='f2')
+        _normals = np.empty(self._vertexes.shape, dtype='f4')
         for vi in range(self._vertexes.shape[0]):
             faces = self._vert_to_face[vi]
             if len(faces) == 0:
@@ -149,7 +149,7 @@ class GLSurfacePlotItem(GLGraphicsItem):
     def initializeGL(self):
         self.shader = Shader(vertex_shader, fragment_shader)
         self.vao = VAO()
-        self.vbo = None
+        self.vbo = VBO([None, None], [3, 3], usage = gl.GL_DYNAMIC_DRAW)
         self.ebo = None
 
     def updateVBO(self):
@@ -157,17 +157,8 @@ class GLSurfacePlotItem(GLGraphicsItem):
             return
 
         self.vao.bind()
-        if self.vbo is None:
-            self.vbo = VBO(
-                [self._vertexes, self._normals],
-                [3, 3],
-                usage = gl.GL_STATIC_DRAW
-            )
-        else:
-            self.vbo.loadd([self._vertexes, self._normals])
-            # self.vbo.loadData([0,1], [self._vertexes, self._normals])
+        self.vbo.updateData([0, 1], [self._vertexes, self._normals])
         self.vbo.setAttrPointer([0, 1], attr_id=[0, 1])
-
         if self._indice_update_flag:
             if self.ebo is not None:
                 self.ebo.delete()
@@ -208,7 +199,6 @@ class GLSurfacePlotItem(GLGraphicsItem):
             self.lightColor = Vector3(color)
         if transform is not None:
             self.lightPos = Vector3(transform * self.lightPos)
-            # print(transform * self.lightPos.xyz)
             self.lightBox.moveTo(*self.lightPos)
         self.update()
 

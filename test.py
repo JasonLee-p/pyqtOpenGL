@@ -28,8 +28,10 @@ class GLView(GLViewWidget):
         )
         self.model = GLModelItem("J:\\learnopengl-python\\resources\\objects\\nanosuit\\nanosuit.obj")
         # self.model = GLModelItem("J:\\learnopengl-python\\resources\\objects\\cyborg\\cyborg.obj")
-        self.zmap = np.random.uniform(0, 0.1, (400,400)) + 1
-        self.surf = GLSurfacePlotItem(zmap=self.zmap, x_size=10)
+        self.zmap = np.random.uniform(0, 0.2, (15,15)) + 1
+        # self.zmap = np.array([[1.10627519, 1.03413945],
+        #                         [1.15691676, 1.09466489]], dtype='f4')
+        self.surf = GLSurfacePlotItem(zmap=self.zmap, x_size=4)
         # print(np.random.rand(20, 20))
 
         self.addItem(self.ax)
@@ -39,7 +41,7 @@ class GLView(GLViewWidget):
         self.addItem(self.arrow)
         self.addItem(self.model)
         self.addItem(self.surf)
-        # self.model.scale(0.1, 0.1, 0.1)
+        self.model.scale(0.3, 0.25, 0.3)
         self.model.setLight(pos=[0, 5, 10], color=(2.5, 2.5, 2.5))
         pos = np.random.randint(-5, 5, size=(5, 3)).astype('f4')
         self.sca.setData(pos=pos, color=np.ones(3, dtype='f4'), size=0.6)
@@ -47,18 +49,20 @@ class GLView(GLViewWidget):
 
         timer = QtCore.QTimer(self)
         timer.timeout.connect(self.onTimeout)
-        timer.start(25)
+        timer.start(30)
 
         self.t0 = time()
+        self.cnt = 10
 
     def onTimeout(self):
+        self.cnt += 1
         # 随机产生 100 个箭头的起点和终点， 以及颜色
         # end_pos = np.random.uniform(-5, 5, (1000, 3)).astype('f4')
         # st_pos = np.random.uniform(-5, 5, (1000, 3)).astype('f4')
         # color = np.random.uniform(0, 1, (1000, 3)).astype('f4')
         # self.sca.setData(st_pos, color)
-        self.zmap += np.random.uniform(-0.01, 0.01, (400,400))
-        self.surf.setData(zmap=self.zmap)
+        # self.zmap += np.random.uniform(-0.01, 0.01, (100,100))
+        self.surf.setData(zmap=np.random.uniform(1, 2, (self.cnt,self.cnt)))
         trans = Matrix4x4.fromAxisAndAngle(0, 1, 0, 1)
         self.model.setLight(transform=trans)
 

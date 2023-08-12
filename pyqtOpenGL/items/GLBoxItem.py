@@ -82,7 +82,7 @@ class GLBoxItem(GLGraphicsItem):
             data = [self.vertices],
             size = [[3, 3]],
         )
-        self.vbo1.setAttrPointer(0, attr_id=[0, 1])
+        self.vbo1.setAttrPointer(0, attr_id=[[0, 1]])
 
     def paint(self, model_matrix=Matrix4x4()):
         self.setupGLState()

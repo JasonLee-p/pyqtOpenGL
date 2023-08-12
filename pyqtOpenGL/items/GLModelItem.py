@@ -91,22 +91,23 @@ class GLModelItem(GLGraphicsItem):
 
         self.lightBox = GLBoxItem(size=(2, 2, 2), color=(10, 10, 10))
         self.lightBox.moveTo(*self.lightPos)
-        self.addChildItem(self.lightBox)
+        # self.addChildItem(self.lightBox)
 
     def initializeGL(self):
         self.shader = Shader(vertex_shader, fragment_shader)
 
         for m in self.meshes:
             m.initializeGL()
+        self.view().addItem(self.lightBox)
 
     def paint(self, model_matrix=Matrix4x4()):
         self.setupGLState()
 
+        self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+        self.shader.set_uniform("model", model_matrix.glData, "mat4")
+        self.shader.set_uniform("lightPos", self.lightPos, "vec3")
+        self.shader.set_uniform("lightColor", self.lightColor, "vec3")
         with self.shader:
-            self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
-            self.shader.set_uniform("model", model_matrix.glData, "mat4")
-            self.shader.set_uniform("lightPos", self.lightPos, "vec3")
-            self.shader.set_uniform("lightColor", self.lightColor, "vec3")
             for m in self.meshes:
                 m.paint(self.shader)
 

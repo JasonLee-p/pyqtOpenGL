@@ -31,8 +31,8 @@ class Shader:
 
     def set_uniform(self, name, data, type:str):
         self.uniform_data[name] = (data, type)
-        # if self._in_use:
-        #     self.__set_uniform(name, data, type)
+        if self._in_use:
+            self.__set_uniform(name, data, type)
 
     def use(self):
         gl.glUseProgram(self.ID)

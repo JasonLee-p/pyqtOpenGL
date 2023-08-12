@@ -83,7 +83,7 @@ class GLBoxTextureItem(GLGraphicsItem):
             data = [self.vertices],
             size = [[3, 3, 2]],
         )
-        self.vbo1.setAttrPointer(0, attr_id=[0, 1, 2])
+        self.vbo1.setAttrPointer(0, attr_id=[[0, 1, 2]])
         # texture
         self.texture = Texture2D(path=BASE_DIR/"resources/textures/box.png", type="tex_diffuse")
 

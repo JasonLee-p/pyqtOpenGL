@@ -66,7 +66,11 @@ class GLArrowPlotItem(GLGraphicsItem):
         self.ebo_cone = EBO(self._cone_indices)
 
         # line
-        self.vbo_shaft = None
+        self.vbo_shaft = VBO(
+            [None, None, None, None],
+            [3, 3, 3, [4, 4, 4, 4]],
+            usage=gl.GL_DYNAMIC_DRAW
+        )
 
     def setData(self, start_pos=None, end_pos=None, color=None):
         if start_pos is not None:
@@ -93,19 +97,13 @@ class GLArrowPlotItem(GLGraphicsItem):
             return
 
         self.vao.bind()
-        if self.vbo_shaft is None:
-            self.vbo_shaft = VBO(
-                [self._st_pos, self._end_pos, self._color, self._transform],
-                [3, 3, 3, [4, 4, 4, 4]],
-                usage=gl.GL_DYNAMIC_DRAW
-            )
-        else:
-            self.vbo_shaft.loadData([0, 1, 2, 3],
-                                    [self._st_pos, self._end_pos, self._color, self._transform])
+        self.vbo_shaft.updateData([0, 1, 2, 3],
+                                [self._st_pos, self._end_pos, self._color, self._transform])
+
         self.vbo_shaft.setAttrPointer(
             [0, 1, 2, 3],
+            attr_id=[0, 1, 2, [3,4,5,6]],
             divisor=[0, 0, 0, 1],
-            attr_id=[0, 1, 2, [3,4,5,6]]
         )
         self._gl_update_flag = False
 
