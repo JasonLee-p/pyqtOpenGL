@@ -28,10 +28,10 @@ class GLArrowPlotItem(GLGraphicsItem):
         super().__init__(parentItem=parentItem)
         self.antialias = antialias
         self.setGLOptions(glOptions)
-        self._cone_vertices, self._cone_indices = cone(0.1*width, 0.3*width)
+        self._cone_vertices, self._cone_indices = cone(tip_size* 0.07*width,
+                                                       tip_size* 0.21*width)
 
         self._width = width
-        self._tip_size = tip_size
         self._st_pos = None
         self._end_pos = None
         self._color = None

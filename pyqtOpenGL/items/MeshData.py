@@ -65,8 +65,7 @@ def cone(radius, height, slices=12):
         indices[i*6+3] = i
         indices[i*6+5] = (i+1) % slices
         indices[i*6+4] = slices+1
-    return vertices, indices
-
+    return vertices, indices.reshape(-1, 3)
 
 def direction_matrixs(starts, ends):
     arrows = ends - starts
@@ -91,3 +90,106 @@ def direction_matrixs(starts, ends):
     # 将 arrow_vert(n, 3) 变换至目标位置
     # vertexes = vertexes @ transforms  #  (n, 3)
     return transforms.copy()
+
+
+def sphere(radius=1.0, rows=12, cols=12, offset=True):
+        """
+        Return a MeshData instance with vertexes and faces computed
+        for a spherical surface.
+        """
+        verts = np.empty((rows+1, cols, 3), dtype=np.float32)
+
+        ## compute vertexes
+        phi = (np.arange(rows+1) * np.pi / rows).reshape(rows+1, 1)
+        s = radius * np.sin(phi)
+        verts[...,2] = radius * np.cos(phi)
+        th = ((np.arange(cols) * 2 * np.pi / cols).reshape(1, cols))
+        if offset:
+            th = th + ((np.pi / cols) * np.arange(rows+1).reshape(rows+1,1))  ## rotate each row by 1/2 column
+        verts[...,0] = s * np.cos(th)
+        verts[...,1] = s * np.sin(th)
+        verts = verts.reshape((rows+1)*cols, 3)[cols-1:-(cols-1)]  ## remove redundant vertexes from top and bottom
+
+        ## compute faces
+        faces = np.empty((rows*cols*2, 3), dtype=np.uint)
+        rowtemplate1 = ((np.arange(cols).reshape(cols, 1) + np.array([[0, 0, 1]])) % cols) + np.array([[0, cols, 0]])
+        rowtemplate2 = ((np.arange(cols).reshape(cols, 1) + np.array([[0, 1, 1]])) % cols) + np.array([[cols, cols, 0]])
+        for row in range(rows):
+            start = row * cols * 2
+            faces[start:start+cols] = rowtemplate1 + row * cols
+            faces[start+cols:start+(cols*2)] = rowtemplate2 + row * cols
+        faces = faces[cols:-cols]  ## cut off zero-area triangles at top and bottom
+
+        ## adjust for redundant vertexes that were removed from top and bottom
+        vmin = cols-1
+        faces[faces<vmin] = vmin
+        faces -= vmin
+        vmax = verts.shape[0]-1
+        faces[faces>vmax] = vmax
+        return verts, faces
+
+def cylinder(radius=[1.0, 1.0], length=1.0, rows=12, cols=12, offset=False):
+    """
+    Return a MeshData instance with vertexes and faces computed
+    for a cylindrical surface.
+    The cylinder may be tapered with different radii at each end (truncated cone)
+    """
+    verts = np.empty(((rows+1)*cols+2, 3), dtype=np.float32)
+    verts1 = verts[:(rows+1)*cols, :].reshape(rows+1, cols, 3)
+    if isinstance(radius, int):
+        radius = [radius, radius] # convert to list
+    ## compute vertexes
+    th = np.linspace(2 * np.pi, (2 * np.pi)/cols, cols).reshape(1, cols)
+    r = np.linspace(radius[0],radius[1],num=rows+1, endpoint=True).reshape(rows+1, 1) # radius as a function of z
+    verts1[...,2] = np.linspace(0, length, num=rows+1, endpoint=True).reshape(rows+1, 1) # z
+    if offset:
+        th = th + ((np.pi / cols) * np.arange(rows+1).reshape(rows+1,1))  ## rotate each row by 1/2 column
+    verts1[...,0] = r * np.cos(th) # x = r cos(th)
+    verts1[...,1] = r * np.sin(th) # y = r sin(th)
+    verts1 = verts1.reshape((rows+1)*cols, 3) # just reshape: no redundant vertices...
+    verts[-2] = [0, 0, 0] # zero at bottom
+    verts[-1] = [0, 0, length] # length at top
+
+    ## compute faces
+    num_side_faces = rows * cols * 2
+    num_cap_faces = cols
+    faces = np.empty((num_side_faces + num_cap_faces*2, 3), dtype=np.uint)
+    rowtemplate1 = ((np.arange(cols).reshape(cols, 1) + np.array([[0, 0, 1]])) % cols) + np.array([[0, cols, 0]])
+    rowtemplate2 = ((np.arange(cols).reshape(cols, 1) + np.array([[0, 1, 1]])) % cols) + np.array([[cols, cols, 0]])
+    for row in range(rows):
+        start = row * cols * 2
+        faces[start:start+cols] = rowtemplate1 + row * cols
+        faces[start+cols:start+(cols*2)] = rowtemplate2 + row * cols
+
+    # Bottom face
+    bottom_start = num_side_faces
+    bottom_row = np.arange(cols)
+    bottom_face = np.column_stack((bottom_row, np.roll(bottom_row, -1), np.full(cols, (rows+1) * cols)))
+    faces[bottom_start : bottom_start + num_cap_faces] = bottom_face
+
+    # Top face
+    top_start = num_side_faces + num_cap_faces
+    top_row = np.arange(rows * cols, (rows+1) * cols)
+    top_face = np.column_stack((np.roll(top_row, -1), top_row, np.full(cols, (rows+1) * cols+1)))
+    faces[top_start : top_start + num_cap_faces] = top_face
+
+    return verts, faces
+
+def face_normal(v1, v2, v3):
+    """计算一个三角形的法向量"""
+    a = v2 - v1 # 三角形的一条边
+    b = v3 - v1 # 三角形的另一条边
+    return np.cross(a, b)
+
+def vertex_normal(vert, ind):
+    """计算每个顶点的法向量"""
+    nv = len(vert) # 顶点的个数
+    nf = len(ind) # 面的个数
+    norm = np.zeros((nv, 3), np.float32) # 初始化每个顶点的法向量为零向量
+    for i in range(nf): # 遍历每个面
+        v1, v2, v3 = vert[ind[i]] # 获取面的三个顶点
+        fn = face_normal(v1, v2, v3) # 计算面的法向量
+        norm[ind[i]] += fn # 将面的法向量累加到对应的顶点上
+    norm = norm / np.linalg.norm(norm, axis=1, keepdims=True) # 归一化每个顶点的法向量
+    return norm
+
