@@ -92,7 +92,7 @@ class GLArrowPlotItem(GLGraphicsItem):
         self._gl_update_flag = True
         self.update()
 
-    def updateVBO(self):
+    def updateGL(self):
         if not self._gl_update_flag:
             return
 
@@ -110,7 +110,7 @@ class GLArrowPlotItem(GLGraphicsItem):
     def paint(self, model_matrix=Matrix4x4()):
         if self._num == 0:
             return
-        self.updateVBO()
+        self.updateGL()
         self.setupGLState()
 
         if self.antialias:

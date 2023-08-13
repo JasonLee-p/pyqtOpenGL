@@ -44,7 +44,7 @@ class Material():
         # print(self.tex)
         for type, paths in self.textures_path.items():
             self.textures.append(
-                Texture2D(self.directory / paths[0], type=TextureType[type])
+                Texture2D(self.directory / paths[0], tex_type=TextureType[type])
             )
 
 

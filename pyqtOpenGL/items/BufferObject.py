@@ -258,23 +258,30 @@ class VAO():
 
 class EBO():
 
-    def __init__(self, indices: np.ndarray):
+    def __init__(
+        self,
+        indices: np.ndarray,
+        usage = gl.GL_STATIC_DRAW
+    ):
         self._ebo = gl.glGenBuffers(1)
-        self._size = indices.size
-        gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, self._ebo)
-        self.loadData(indices)
+        self._usage = usage
+        self.updateData(indices)
 
     @property
     def isbind(self):
         return self._ebo == gl.glGetIntegerv(gl.GL_ELEMENT_ARRAY_BUFFER_BINDING)
 
-    def loadData(self, indices: np.ndarray):
-        self.bind()
+    def updateData(self, indices: np.ndarray):
+        if indices is None:
+            self._size = 0
+            return
+
+        gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, self._ebo)
         gl.glBufferData(
             gl.GL_ELEMENT_ARRAY_BUFFER,
             indices.nbytes,
             indices,
-            gl.GL_STATIC_DRAW
+            self._usage,
         )
         self._size = indices.size
 

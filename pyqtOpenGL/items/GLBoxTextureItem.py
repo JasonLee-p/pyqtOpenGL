@@ -85,7 +85,7 @@ class GLBoxTextureItem(GLGraphicsItem):
         )
         self.vbo1.setAttrPointer(0, attr_id=[[0, 1, 2]])
         # texture
-        self.texture = Texture2D(path=BASE_DIR/"resources/textures/box.png", type="tex_diffuse")
+        self.texture = Texture2D(source=BASE_DIR/"resources/textures/box.png", tex_type="tex_diffuse")
 
     def paint(self, model_matrix=Matrix4x4()):
         self.setupGLState()

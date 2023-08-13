@@ -52,6 +52,9 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         dpr = self.devicePixelRatioF()
         return int(self.height() * dpr)
 
+    def deviceRatio(self):
+        return self.height() / self.width()
+
     def reset(self):
         self.camera.set_params(Vector3(0., 0., 10.), 0, 0, 45)
 
@@ -95,6 +98,7 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         Note that we may use viewport != self.opts['viewport'] when exporting.
         """
         glClearColor(*self.bg_color)
+        glDepthMask(GL_TRUE)
         glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT )
         self.drawItems()
 
@@ -108,14 +112,15 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
                 printExc()
                 print("Error while drawing item %s." % str(it))
 
-    def pixelSize(self):
+    def pixelSize(self, pos=Vector3(0, 0, 0)):
         """
-        Return the approximate size of a screen pixel at the location pos
+        depth: z-value in global coordinate system
+        Return the approximate (y) size of a screen pixel at the location pos
         Pos may be a Vector or an (N,3) array of locations
         """
-        dist = self.camera.pos.z
+        pos = self.get_view_matrix() * pos  # convert to view coordinates
         fov = self.camera.fov
-        return dist * 2. * tan(0.5 * radians(fov)) / self.width()
+        return max(-pos[2], 0) * 2. * tan(0.5 * radians(fov)) / self.deviceHeight()
 
     def mousePressEvent(self, ev):
         lpos = ev.position() if hasattr(ev, 'position') else ev.localPos()

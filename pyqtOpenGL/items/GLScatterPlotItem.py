@@ -36,22 +36,14 @@ class GLScatterPlotItem(GLGraphicsItem):
     def initializeGL(self):
         self.shader = Shader(vertex_shader, fragment_shader)
         self.vao = VAO()
-        self.vbo = None
+        self.vbo = VBO([None, None], [3, 3], usage=gl.GL_DYNAMIC_DRAW)
 
     def updateVBO(self):
         if not self._gl_update_flag:
             return
 
         self.vao.bind()
-        if self.vbo is None:
-            self.vbo = VBO(
-                [self._pos, self._color],
-                [3, 3],
-                usage=gl.GL_DYNAMIC_DRAW
-            )
-        else:
-            self.vbo.bind()
-            self.vbo.loadData([0,1], [self._pos, self._color])
+        self.vbo.updateData([0,1], [self._pos, self._color])
         self.vbo.setAttrPointer([0, 1], attr_id=[0, 1])
         self._gl_update_flag = False
 

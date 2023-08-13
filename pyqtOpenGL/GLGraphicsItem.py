@@ -12,12 +12,14 @@ GLOptions = {
         GL_BLEND: False,
         GL_ALPHA_TEST: False,
         GL_CULL_FACE: False,
+        'glDepthMask': (GL_TRUE,),
     },
     'translucent': {
         GL_DEPTH_TEST: True,
         GL_BLEND: True,
         GL_ALPHA_TEST: False,
         GL_CULL_FACE: False,
+        'glDepthMask': (GL_TRUE,),
         'glBlendFunc': (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA),
     },
     'additive': {
@@ -25,6 +27,15 @@ GLOptions = {
         GL_BLEND: True,
         GL_ALPHA_TEST: False,
         GL_CULL_FACE: False,
+        'glDepthMask': (GL_TRUE,),
+        'glBlendFunc': (GL_SRC_ALPHA, GL_ONE),
+    },
+    'ontop': {
+        GL_DEPTH_TEST: False,
+        GL_BLEND: True,
+        GL_ALPHA_TEST: False,
+        GL_CULL_FACE: False,
+        'glDepthMask': (GL_FALSE,),
         'glBlendFunc': (GL_SRC_ALPHA, GL_ONE),
     },
 }
@@ -55,7 +66,6 @@ class GLGraphicsItem(QtCore.QObject):
 
         if self.__parent is not None:
             self.__parent.__children.remove(self)
-
         item.__children.add(self)
         self.__parent = item
 
