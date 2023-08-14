@@ -17,7 +17,7 @@ class Camera:
         yaw: rotate around VCS y axis
         pitch: rotate around VCS x axis
         """
-        self.pos = Vector3(position)
+        self.pos = Vector3(position)  # 世界坐标系原点指向相机位置的向量, 在相机坐标下的坐标
         self.quat = Quaternion.fromEulerAngles(pitch, yaw, 0.)
         self.fov = fov
 
@@ -38,6 +38,10 @@ class Camera:
 
     def get_proj_view_matrix(self, width, height, fov=None):
         return self.get_projection_matrix(width, height, fov) * self.get_view_matrix()
+
+    def get_view_pos(self):
+        """计算相机在世界坐标系下的坐标"""
+        return self.quat.inverse() * self.pos
 
     def orbit(self, yaw, pitch):
         """Orbits the camera around the center position.

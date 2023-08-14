@@ -245,7 +245,7 @@ class GLGraphicsItem(QtCore.QObject):
         return self.__view.get_view_matrix()
 
     def view_pos(self):
-        return self.__view.camera.pos
+        return self.__view.camera.get_view_pos()
 
     def moveTo(self, x, y, z):
         """

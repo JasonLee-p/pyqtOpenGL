@@ -31,7 +31,8 @@ class Mesh():
         self._vertexes = np.array(vertexes, dtype=np.float32)
         self._indices = np.array(indices, dtype=np.uint32)
         self._normals = np.array(normals, dtype=np.float32)
-        self._texcoords = np.array(texcoords[0], dtype=np.float32)[..., :2]
+        self._texcoords = np.array(texcoords[0], dtype=np.float32)[..., :2] / 40
+
         self._material = Material(
             material["COLOR_AMBIENT"],
             material["COLOR_DIFFUSE"],
@@ -83,9 +84,9 @@ class GLModelItem(GLGraphicsItem):
         self.setGLOptions(glOptions)
 
         # light
-        self.light = PointLight(position=Vector3(lightPos), ambient=[0.25,0.25,0.25], specular=[1,1,1])
+        self.light = PointLight(position=Vector3(lightPos))
 
-        self.lightBox = GLBoxItem(size=(0.5, 0.5, 0.5), color=self.light.diffuse)
+        self.lightBox = GLBoxItem(size=(0.5, 0.5, 0.5), color=self.light.diffuse.xyz*3)
         self.lightBox.moveTo(*self.light.position)
 
     def initializeGL(self):
@@ -97,14 +98,20 @@ class GLModelItem(GLGraphicsItem):
 
     def paint(self, model_matrix=Matrix4x4()):
         self.setupGLState()
-
+        gl.glEnable(gl.GL_CULL_FACE)
+        gl.glCullFace(gl.GL_BACK)
         self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
         self.shader.set_uniform("model", model_matrix.glData, "mat4")
         self.shader.set_uniform("ViewPos",self.view_pos(), "vec3")
+        self.light.set_pos([0, 5, 10])
         self.light.set_uniform(self.shader, "pointLight[0]")
+        self.light.set_pos([-25, -20.0, -25.0])
+        self.light.set_uniform(self.shader, "pointLight[1]")
         with self.shader:
-            for m in self.meshes:
-                m.paint(self.shader)
+            # for m in self.meshes:
+            #     m.paint(self.shader)
+            self.meshes[1].paint(self.shader)
+            self.meshes[0].paint(self.shader)
 
     def _load_model(self, path):
         start_time = time.time()
@@ -195,7 +202,7 @@ struct PointLight {
     vec3 diffuse;
     vec3 specular;
 };
-#define NR_POINT_LIGHTS 1
+#define NR_POINT_LIGHTS 2
 uniform PointLight pointLight[NR_POINT_LIGHTS];
 
 vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewPos)

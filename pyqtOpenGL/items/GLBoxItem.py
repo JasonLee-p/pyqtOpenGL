@@ -119,7 +119,7 @@ out vec3 Normal;
 
 void main() {
     FragPos = vec3(model * vec4(iPos*size, 1.0));
-    Normal = mat3(transpose(inverse(model))) * iNormal;
+    Normal = normalize(mat3(transpose(inverse(model))) * iNormal);
 
     gl_Position = view * vec4(FragPos, 1.0);
 }
@@ -144,9 +144,8 @@ void main() {
     vec3 ambient = ambientStrength * lightColor * objColor;
 
     // diffuse
-    vec3 norm = normalize(Normal);
     vec3 lightDir = normalize(lightPos - FragPos);
-    float diff = max(dot(norm, lightDir), 0.0);
+    float diff = max(dot(Normal, lightDir), 0.0);
     vec3 diffuse = lightColor * (diff * objColor);
 
     vec3 result = ambient + diffuse;

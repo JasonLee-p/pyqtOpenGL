@@ -83,7 +83,6 @@ class GLMeshItem(GLGraphicsItem):
             return
         self.updateGL()
         self.setupGLState()
-
         self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
         self.shader.set_uniform("model", model_matrix.glData, "mat4")
         self.shader.set_uniform("size", self._size, "float")
@@ -157,7 +156,7 @@ void main() {
     oColor = iColor;
     FragPos = vec3(model * vec4(stPos + iPos*size, 1.0));
     if (calcNormal){
-        Normal = mat3(transpose(inverse(model))) * iNormal;
+        Normal = normalize(mat3(transpose(inverse(model))) * iNormal);
     } else {
         Normal = vec3(0, 0, 0);
     }
@@ -185,9 +184,8 @@ void main() {
         vec3 ambient = ambientStrength * lightColor * oColor;
 
         // diffuse
-        vec3 norm = normalize(Normal);
         vec3 lightDir = normalize(lightPos - FragPos);
-        float diff = max(dot(norm, lightDir), 0.0);
+        float diff = max(dot(Normal, lightDir), 0.0);
         vec3 diffuse = lightColor * (diff * oColor);
 
         vec3 result = ambient + diffuse;
