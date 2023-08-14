@@ -197,6 +197,7 @@ class GLSurfacePlotItem(GLGraphicsItem):
     def setLight(self, pos=None, color=None, transform: Matrix4x4=None):
         if pos is not None:
             self.lightPos = Vector3(pos)
+            self.lightBox.moveTo(*self.lightPos)
         if color is not None:
             self.lightColor = Vector3(color)
         if transform is not None:

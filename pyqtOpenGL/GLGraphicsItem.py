@@ -244,6 +244,9 @@ class GLGraphicsItem(QtCore.QObject):
     def view_matrix(self) -> Matrix4x4:
         return self.__view.get_view_matrix()
 
+    def view_pos(self):
+        return self.__view.camera.pos
+
     def moveTo(self, x, y, z):
         """
         Move the object to the absolute position (x,y,z) in its parent's coordinate system.

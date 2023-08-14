@@ -10,9 +10,10 @@ from .shader import Shader
 from .BufferObject import VAO, VBO, EBO
 from .texture import Texture2D
 from .GLBoxItem import GLBoxItem
-from .MeshData import Material
+from .MeshData import Material, PointLight
 
 __all__ = ['GLModelItem']
+
 
 
 class Mesh():
@@ -57,10 +58,7 @@ class Mesh():
         self._material.load_textures()
 
     def paint(self, shader):
-        for idx, texture in enumerate(self._material.textures):
-            texture.bind(idx)
-            shader.set_uniform(name=texture.type, data=idx, type="Sampler2D")
-        shader.set_uniform("opacity", self._material.opacity, "float")
+        self._material.set_uniform(shader, "material")
 
         self.vao.bind()
         gl.glDrawElements(gl.GL_TRIANGLES, self._indices.size, gl.GL_UNSIGNED_INT, ctypes.c_void_p(0))
@@ -72,7 +70,6 @@ class GLModelItem(GLGraphicsItem):
         self,
         path,
         lightPos = [5, 3.0, 20.0],
-        lightColor = [1.0, 1.0, 1.0],
         gamma=False,
         glOptions='translucent',
         parentItem=None,
@@ -86,12 +83,10 @@ class GLModelItem(GLGraphicsItem):
         self.setGLOptions(glOptions)
 
         # light
-        self.lightPos = Vector3(lightPos)
-        self.lightColor = Vector3(lightColor)
+        self.light = PointLight(position=Vector3(lightPos), ambient=[0.25,0.25,0.25], specular=[1,1,1])
 
-        self.lightBox = GLBoxItem(size=(2, 2, 2), color=(10, 10, 10))
-        self.lightBox.moveTo(*self.lightPos)
-        # self.addChildItem(self.lightBox)
+        self.lightBox = GLBoxItem(size=(0.5, 0.5, 0.5), color=self.light.diffuse)
+        self.lightBox.moveTo(*self.light.position)
 
     def initializeGL(self):
         self.shader = Shader(vertex_shader, fragment_shader)
@@ -105,8 +100,8 @@ class GLModelItem(GLGraphicsItem):
 
         self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
         self.shader.set_uniform("model", model_matrix.glData, "mat4")
-        self.shader.set_uniform("lightPos", self.lightPos, "vec3")
-        self.shader.set_uniform("lightColor", self.lightColor, "vec3")
+        self.shader.set_uniform("ViewPos",self.view_pos(), "vec3")
+        self.light.set_uniform(self.shader, "pointLight[0]")
         with self.shader:
             for m in self.meshes:
                 m.paint(self.shader)
@@ -137,15 +132,13 @@ class GLModelItem(GLGraphicsItem):
         print("Took {}s to load model {}".format(
                 round(time.time()-start_time, 3), path))
 
-    def setLight(self, pos=None, color=None, transform: Matrix4x4=None):
+    def setLight(self, pos=None, transform: Matrix4x4=None):
         if pos is not None:
-            self.lightPos = Vector3(pos)
-        if color is not None:
-            self.lightColor = Vector3(color)
+            self.light.set_pos(pos)
+            self.lightBox.moveTo(*pos)
         if transform is not None:
-            self.lightPos = Vector3(transform * self.lightPos)
-            # print(transform * self.lightPos.xyz)
-            self.lightBox.moveTo(*self.lightPos)
+            self.light.set_pos(transform * self.light.position)
+            self.lightBox.moveTo(*self.light.position)
         self.update()
 
 
@@ -178,24 +171,70 @@ in vec2 TexCoords;
 in vec3 FragPos;
 in vec3 Normal;
 
-uniform sampler2D tex_diffuse;
-uniform vec3 lightColor;
-uniform vec3 lightPos;
-uniform float opacity;
+uniform vec3 ViewPos;
+
+struct Material {
+    float opacity;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+    bool use_texture;
+    sampler2D tex_diffuse;
+};
+uniform Material material;
+
+struct PointLight {
+    vec3 position;
+
+    float constant;
+    float linear;
+    float quadratic;
+
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+};
+#define NR_POINT_LIGHTS 1
+uniform PointLight pointLight[NR_POINT_LIGHTS];
+
+vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewPos)
+{
+    vec3 viewDir = normalize(viewPos - fragPos);
+    vec3 lightDir = normalize(light.position - fragPos);
+    // 漫反射着色
+    float diff = max(dot(normal, lightDir), 0.0);
+    // 镜面光着色
+    vec3 reflectDir = normalize(reflect(-lightDir, normal));
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
+    // 衰减
+    //float distance    = length(light.position - fragPos);
+    //float attenuation = 1.0 / (light.constant + light.linear * distance +
+    //             light.quadratic * (distance * distance));
+    // 合并结果
+    vec3 ambient  = vec3(0);
+    vec3 diffuse  = vec3(0);
+    vec3 specular = vec3(0);
+    if (material.use_texture) {
+        ambient  = light.ambient  * vec3(texture(material.tex_diffuse, TexCoords));
+        diffuse  = light.diffuse  * diff * vec3(texture(material.tex_diffuse, TexCoords));
+        specular = light.specular * spec * vec3(texture(material.tex_diffuse, TexCoords));
+    } else {
+        ambient  = light.ambient  * material.ambient;
+        diffuse  = light.diffuse  * diff * material.diffuse;
+        specular = light.specular * spec * material.specular;
+    }
+
+    //ambient  *= attenuation;
+    //diffuse  *= attenuation;
+    //specular *= attenuation;
+    return ambient + specular + diffuse;
+}
 
 void main() {
-    vec3 objColor = texture(tex_diffuse, TexCoords).rgb;
-    // ambient
-    float ambientStrength = 0.3;
-    vec3 ambient = ambientStrength * lightColor * objColor;
-
-    // diffuse
-    vec3 norm = normalize(Normal);
-    vec3 lightDir = normalize(lightPos - FragPos);
-    float diff = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse = lightColor * (diff * objColor);
-
-    vec3 result = ambient + diffuse;
-    FragColor = vec4(result, opacity);
+    vec3 result = vec3(0);
+    for(int i = 0; i < NR_POINT_LIGHTS; i++)
+        result += CalcPointLight(pointLight[i], Normal, FragPos, ViewPos);
+    FragColor = vec4(result, material.opacity);
 }
 """

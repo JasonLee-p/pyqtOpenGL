@@ -47,6 +47,52 @@ class Material():
                 Texture2D(self.directory / paths[0], tex_type=TextureType[type])
             )
 
+    def set_uniform(self, shader: Shader, name: str):
+        use_texture = False
+        for i, tex in enumerate(self.textures):
+            if tex.type == "tex_diffuse":
+                tex.bind(i)
+                shader.set_uniform(f"{name}.{tex.type}", i, "sampler2D")
+                use_texture = True
+        shader.set_uniform(name+".ambient", self.ambient, "vec3")
+        shader.set_uniform(name+".diffuse", self.diffuse, "vec3")
+        shader.set_uniform(name+".specular", self.specular, "vec3")
+        shader.set_uniform(name+".shininess", self.shininess, "float")
+        shader.set_uniform(name+".opacity", self.opacity, "float")
+        shader.set_uniform(name+".use_texture", use_texture, "bool")
+
+class PointLight():
+
+    def __init__(
+        self,
+        position = Vector3(0.0, 0.0, 0.0),
+        ambient = Vector3(0.05, 0.05, 0.05),
+        diffuse = Vector3(0.8, 0.8, 0.8),
+        specular = Vector3(1.0, 1.0, 1.0),
+        constant = 1.0,
+        linear = 0.09,
+        quadratic = 0.032,
+    ):
+        self.position = position
+        self.amibent = ambient
+        self.diffuse = diffuse
+        self.specular = specular
+        self.constant = constant
+        self.linear = linear
+        self.quadratic = quadratic
+
+    def set_uniform(self, shader: Shader, name: str):
+        shader.set_uniform(name + ".position", self.position, "vec3")
+        shader.set_uniform(name + ".ambient", self.amibent, "vec3")
+        shader.set_uniform(name + ".diffuse", self.diffuse, "vec3")
+        shader.set_uniform(name + ".specular", self.specular, "vec3")
+        shader.set_uniform(name + ".constant", self.constant, "float32")
+        shader.set_uniform(name + ".linear", self.linear, "float32")
+        shader.set_uniform(name + ".quadratic", self.quadratic, "float32")
+
+    def set_pos(self, pos):
+        self.position = Vector3(pos)
+
 
 def cone(radius, height, slices=12):
     slices = max(3, slices)
