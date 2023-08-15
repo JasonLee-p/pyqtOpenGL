@@ -2,16 +2,10 @@ import cv2
 import numpy as np
 from time import time
 from pyqtOpenGL.items import *
+from pyqtOpenGL.GLViewWiget import GLViewWidget
 from pyqtOpenGL.items.GLGelSlimItem import GLGelSimItem
 from PyQt5 import QtCore, QtGui, QtWidgets
-from pyqtOpenGL.items import *
-from pyqtOpenGL.items.light import PointLight
-
-from PyQt5 import QtGui, QtCore
 from PyQt5.QtCore import Qt
-from gelslimpi.utils import VideoReader
-from pyqtOpenGL.GLViewWiget import GLViewWidget
-from pyqtOpenGL.transform3d import Matrix4x4
 
 def sphere_depth(r_pix):
     x_span = np.linspace(-r_pix-2, r_pix+2, 2*int(r_pix)+5)
@@ -31,7 +25,6 @@ class GLView(GLViewWidget):
         self.grid = GLGridItem(size=(200, 200), spacing=(10, 10))
         self.grid.rotate(90, 1, 0, 0)
         self.grid.translate(10, 0, -20)
-        # self.text = GLTextItem(text="Hello Worldj", pos=(0.1, 0.3, -1), color=(1, 1, 0), fixed=False)
 
         self.zmap = sphere_depth(100)/5
         cv2.GaussianBlur(self.zmap, (5,5), 0, dst=self.zmap)

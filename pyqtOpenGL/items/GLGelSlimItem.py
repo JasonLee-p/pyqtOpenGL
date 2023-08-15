@@ -37,7 +37,8 @@ class GLGelSimItem(GLGraphicsItem):
             parentItem = self,
         )
         self.gelslim_gel.setMaterial(self.gelslim_base.getMaterial(0))
-        self.gelslim_gel.setDepthValue(1)
+        self.gelslim_base.setDepthValue(0)
+        self.gelslim_gel.setDepthValue(10)
 
 
     def setDepth(self, zmap):

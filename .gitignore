@@ -107,5 +107,5 @@ venv.bak/
 # cython generated files
 source/assimp/*.cpp
 
-resources/
+# resources/
 shaders/
