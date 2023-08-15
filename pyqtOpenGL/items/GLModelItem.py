@@ -75,7 +75,7 @@ class GLModelItem(GLGraphicsItem, LightMixin):
                 Mesh(
                     m.vertices,
                     m.indices,
-                    m.texcoords,
+                    m.texcoords[0],
                     m.normals,
                     scene.materials[m.material_index],
                     directory=self._directory,

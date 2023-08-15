@@ -10,7 +10,8 @@ from ..transform3d import Vector3
 from functools import singledispatchmethod
 
 __all__ = [
-    "Mesh", "Material", "cone", "direction_matrixs", "sphere", "cylinder", "cube", "vertex_normal"
+    "Mesh", "Material", "direction_matrixs", "vertex_normal",
+    "sphere", "cylinder", "cube", "cone", "plane"
 ]
 
 Vec2 = (2 * c_float)
@@ -34,7 +35,7 @@ class Material():
         specular = [0.2, 0.2, 0.2],
         shininess = 10,
         opacity = 1,
-        textures: dict = None,
+        textures: dict = dict(),
         directory = None,
     ):
         self.ambient = Vector3(ambient)
@@ -107,16 +108,21 @@ class Mesh():
         calc_normals = False,
     ):
         self._vertexes = np.array(vertexes, dtype=np.float32)
-        self._indices = np.array(indices, dtype=np.uint32)
+
+        if indices is not None:
+            self._indices = np.array(indices, dtype=np.uint32)
+        else:
+            self._indices = None
 
         if calc_normals and normals is None:
             self._normals = vertex_normal(self._vertexes, self._indices)
         else:
             self._normals = np.array(normals, dtype=np.float32)
 
-        if len(texcoords) != self._vertexes.shape[0]:
-            texcoords = texcoords[0]
-        self._texcoords = np.array(texcoords, dtype=np.float32)[..., :2] / texcoords_scale
+        if texcoords is None:
+            self._texcoords = None
+        else:
+            self._texcoords = np.array(texcoords, dtype=np.float32)[..., :2] / texcoords_scale
 
         if isinstance(material, dict):
             self._material = Material(material, directory)
@@ -138,8 +144,15 @@ class Mesh():
 
     def paint(self, shader):
         self._material.set_uniform(shader, "material")
+
+        if self._indices is None:
+            shader.set_uniform("material.use_texture", False,'bool')
+
         self.vao.bind()
-        gl.glDrawElements(gl.GL_TRIANGLES, self._indices.size, gl.GL_UNSIGNED_INT, c_void_p(0))
+        if self._indices is not None:
+            gl.glDrawElements(gl.GL_TRIANGLES, self._indices.size, gl.GL_UNSIGNED_INT, c_void_p(0))
+        else:
+            gl.glDrawArrays(gl.GL_TRIANGLES, 0, self._vertexes.size)
 
     def setMaterial(self, material=None):
         if isinstance(material, dict):
@@ -239,7 +252,7 @@ def cylinder(radius=[1.0, 1.0], length=1.0, rows=12, cols=12, offset=False):
     for a cylindrical surface.
     The cylinder may be tapered with different radii at each end (truncated cone)
     """
-    verts = np.empty(((rows+1)*cols+2, 3), dtype=np.float32)
+    verts = np.empty(((rows+3)*cols+2, 3), dtype=np.float32)  # 顶面的点和底面的点重复一次, 保证法线计算正确
     verts1 = verts[:(rows+1)*cols, :].reshape(rows+1, cols, 3)
     if isinstance(radius, int):
         radius = [radius, radius] # convert to list
@@ -252,6 +265,9 @@ def cylinder(radius=[1.0, 1.0], length=1.0, rows=12, cols=12, offset=False):
     verts1[...,0] = r * np.cos(th) # x = r cos(th)
     verts1[...,1] = r * np.sin(th) # y = r sin(th)
     verts1 = verts1.reshape((rows+1)*cols, 3) # just reshape: no redundant vertices...
+    # 顶面, 底面
+    verts[(rows+1)*cols:(rows+2)*cols] = verts1[-cols:]
+    verts[(rows+2)*cols:-2] = verts1[:cols]
     verts[-2] = [0, 0, 0] # zero at bottom
     verts[-1] = [0, 0, length] # length at top
 
@@ -268,14 +284,14 @@ def cylinder(radius=[1.0, 1.0], length=1.0, rows=12, cols=12, offset=False):
 
     # Bottom face
     bottom_start = num_side_faces
-    bottom_row = np.arange(cols)
-    bottom_face = np.column_stack((bottom_row, np.roll(bottom_row, -1), np.full(cols, (rows+1) * cols)))
+    bottom_row = np.arange((rows+2) * cols, (rows+3) * cols)
+    bottom_face = np.column_stack((bottom_row, np.roll(bottom_row, -1), np.full(cols, (rows+3) * cols)))
     faces[bottom_start : bottom_start + num_cap_faces] = bottom_face
 
     # Top face
     top_start = num_side_faces + num_cap_faces
-    top_row = np.arange(rows * cols, (rows+1) * cols)
-    top_face = np.column_stack((np.roll(top_row, -1), top_row, np.full(cols, (rows+1) * cols+1)))
+    top_row = np.arange((rows+1) * cols, (rows+2) * cols)
+    top_face = np.column_stack((np.roll(top_row, -1), top_row, np.full(cols, (rows+3) * cols+1)))
     faces[top_start : top_start + num_cap_faces] = top_face
 
     return verts, faces
@@ -286,51 +302,69 @@ def cube(x, y, z):
     for a rectangular cuboid of the given dimensions.
     """
     vertices = np.array( [
-        # 顶点坐标           # 法向量
-        -0.5, -0.5, -0.5,  0.0,  0.0, -1.0,
-         0.5, -0.5, -0.5,  0.0,  0.0, -1.0,
-         0.5,  0.5, -0.5,  0.0,  0.0, -1.0,
-         0.5,  0.5, -0.5,  0.0,  0.0, -1.0,
-        -0.5,  0.5, -0.5,  0.0,  0.0, -1.0,
-        -0.5, -0.5, -0.5,  0.0,  0.0, -1.0,
+        # 顶点坐标             # 法向量       # 纹理坐标
+        -0.5, -0.5, -0.5,  0.0,  0.0, -1.0,  0.0, 0.0,
+         0.5, -0.5, -0.5,  0.0,  0.0, -1.0,  1.0, 0.0,
+         0.5,  0.5, -0.5,  0.0,  0.0, -1.0,  1.0, 1.0,
+         0.5,  0.5, -0.5,  0.0,  0.0, -1.0,  1.0, 1.0,
+        -0.5,  0.5, -0.5,  0.0,  0.0, -1.0,  0.0, 1.0,
+        -0.5, -0.5, -0.5,  0.0,  0.0, -1.0,  0.0, 0.0,
 
-        -0.5, -0.5,  0.5,  0.0,  0.0,  1.0,
-         0.5, -0.5,  0.5,  0.0,  0.0,  1.0,
-         0.5,  0.5,  0.5,  0.0,  0.0,  1.0,
-         0.5,  0.5,  0.5,  0.0,  0.0,  1.0,
-        -0.5,  0.5,  0.5,  0.0,  0.0,  1.0,
-        -0.5, -0.5,  0.5,  0.0,  0.0,  1.0,
+        -0.5, -0.5,  0.5,  0.0,  0.0,  1.0,  0.0, 0.0,
+         0.5, -0.5,  0.5,  0.0,  0.0,  1.0,  1.0, 0.0,
+         0.5,  0.5,  0.5,  0.0,  0.0,  1.0,  1.0, 1.0,
+         0.5,  0.5,  0.5,  0.0,  0.0,  1.0,  1.0, 1.0,
+        -0.5,  0.5,  0.5,  0.0,  0.0,  1.0,  0.0, 1.0,
+        -0.5, -0.5,  0.5,  0.0,  0.0,  1.0,  0.0, 0.0,
 
-        -0.5,  0.5,  0.5, -1.0,  0.0,  0.0,
-        -0.5,  0.5, -0.5, -1.0,  0.0,  0.0,
-        -0.5, -0.5, -0.5, -1.0,  0.0,  0.0,
-        -0.5, -0.5, -0.5, -1.0,  0.0,  0.0,
-        -0.5, -0.5,  0.5, -1.0,  0.0,  0.0,
-        -0.5,  0.5,  0.5, -1.0,  0.0,  0.0,
+        -0.5,  0.5,  0.5, -1.0,  0.0,  0.0,  1.0, 0.0,
+        -0.5,  0.5, -0.5, -1.0,  0.0,  0.0,  1.0, 1.0,
+        -0.5, -0.5, -0.5, -1.0,  0.0,  0.0,  0.0, 1.0,
+        -0.5, -0.5, -0.5, -1.0,  0.0,  0.0,  0.0, 1.0,
+        -0.5, -0.5,  0.5, -1.0,  0.0,  0.0,  0.0, 0.0,
+        -0.5,  0.5,  0.5, -1.0,  0.0,  0.0,  1.0, 0.0,
 
-         0.5,  0.5,  0.5,  1.0,  0.0,  0.0,
-         0.5,  0.5, -0.5,  1.0,  0.0,  0.0,
-         0.5, -0.5, -0.5,  1.0,  0.0,  0.0,
-         0.5, -0.5, -0.5,  1.0,  0.0,  0.0,
-         0.5, -0.5,  0.5,  1.0,  0.0,  0.0,
-         0.5,  0.5,  0.5,  1.0,  0.0,  0.0,
+         0.5,  0.5,  0.5,  1.0,  0.0,  0.0,  1.0, 0.0,
+         0.5,  0.5, -0.5,  1.0,  0.0,  0.0,  1.0, 1.0,
+         0.5, -0.5, -0.5,  1.0,  0.0,  0.0,  0.0, 1.0,
+         0.5, -0.5, -0.5,  1.0,  0.0,  0.0,  0.0, 1.0,
+         0.5, -0.5,  0.5,  1.0,  0.0,  0.0,  0.0, 0.0,
+         0.5,  0.5,  0.5,  1.0,  0.0,  0.0,  1.0, 0.0,
 
-        -0.5, -0.5, -0.5,  0.0, -1.0,  0.0,
-         0.5, -0.5, -0.5,  0.0, -1.0,  0.0,
-         0.5, -0.5,  0.5,  0.0, -1.0,  0.0,
-         0.5, -0.5,  0.5,  0.0, -1.0,  0.0,
-        -0.5, -0.5,  0.5,  0.0, -1.0,  0.0,
-        -0.5, -0.5, -0.5,  0.0, -1.0,  0.0,
+        -0.5, -0.5, -0.5,  0.0, -1.0,  0.0,  0.0, 1.0,
+         0.5, -0.5, -0.5,  0.0, -1.0,  0.0,  1.0, 1.0,
+         0.5, -0.5,  0.5,  0.0, -1.0,  0.0,  1.0, 0.0,
+         0.5, -0.5,  0.5,  0.0, -1.0,  0.0,  1.0, 0.0,
+        -0.5, -0.5,  0.5,  0.0, -1.0,  0.0,  0.0, 0.0,
+        -0.5, -0.5, -0.5,  0.0, -1.0,  0.0,  0.0, 1.0,
 
-        -0.5,  0.5, -0.5,  0.0,  1.0,  0.0,
-         0.5,  0.5, -0.5,  0.0,  1.0,  0.0,
-         0.5,  0.5,  0.5,  0.0,  1.0,  0.0,
-         0.5,  0.5,  0.5,  0.0,  1.0,  0.0,
-        -0.5,  0.5,  0.5,  0.0,  1.0,  0.0,
-        -0.5,  0.5, -0.5,  0.0,  1.0,  0.0
-    ], dtype="f4").reshape(-1, 6)
+        -0.5,  0.5, -0.5,  0.0,  1.0,  0.0,  0.0, 1.0,
+         0.5,  0.5, -0.5,  0.0,  1.0,  0.0,  1.0, 1.0,
+         0.5,  0.5,  0.5,  0.0,  1.0,  0.0,  1.0, 0.0,
+         0.5,  0.5,  0.5,  0.0,  1.0,  0.0,  1.0, 0.0,
+        -0.5,  0.5,  0.5,  0.0,  1.0,  0.0,  0.0, 0.0,
+        -0.5,  0.5, -0.5,  0.0,  1.0,  0.0,  0.0, 1.0,
+    ], dtype="f4").reshape(-1, 8)
+    verts = vertices[:, :3] * np.array([x,y,z], dtype="f4")
+    normals = vertices[:, 3:6]
+    texcoords = vertices[:, 6:]
+    return verts, normals, texcoords
 
-    return vertices[:, :3] * np.array([x,y,z], dtype='f4'), vertices[:, 3:]
+
+def plane(x, y):
+    vertices = np.array([
+        # 顶点坐标             # 法向量       # 纹理坐标
+        -0.5, -0.5, 0.0,  0.0,  0.0, 1.0,  0.0, 0.0,
+         0.5, -0.5, 0.0,  0.0,  0.0, 1.0,  1.0, 0.0,
+         0.5,  0.5, 0.0,  0.0,  0.0, 1.0,  1.0, 1.0,
+         0.5,  0.5, 0.0,  0.0,  0.0, 1.0,  1.0, 1.0,
+        -0.5,  0.5, 0.0,  0.0,  0.0, 1.0,  0.0, 1.0,
+        -0.5, -0.5, 0.0,  0.0,  0.0, 1.0,  0.0, 0.0,
+    ], dtype=np.float32).reshape(-1, 8)
+    verts = vertices[:, :3] * np.array([x,y,1.0], dtype="f4")
+    normals = vertices[:, 3:6]
+    texcoords = vertices[:, 6:]
+    return verts, normals, texcoords
 
 
 def face_normal(v1, v2, v3):

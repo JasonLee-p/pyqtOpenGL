@@ -8,6 +8,7 @@ from ..transform3d import Vector3, Matrix4x4
 from .MeshData import sphere
 from typing import List
 
+__all__ = ["PointLight", "LightMixin"]
 
 class PointLight():
 
