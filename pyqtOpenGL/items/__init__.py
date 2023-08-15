@@ -4,12 +4,15 @@ from .GLBoxItem import GLBoxItem
 from .GLBoxTextureItem import GLBoxTextureItem
 from .GLGridItem import GLGridItem
 from .GLImageItem import GLImageItem
-from .GLMeshItem import GLMeshItem
+from .GLInstancedMeshItem import GLInstancedMeshItem
 from .GLModelItem import GLModelItem
 from .GLScatterPlotItem import GLScatterPlotItem
 from .GLSurfacePlotItem import GLSurfacePlotItem
 from .GLTextItem import GLTextItem
-from .MeshData import cone, cylinder, sphere, direction_matrixs
+
+from .MeshData import *
 from .texture import Texture2D
 from .BufferObject import VAO, VBO, EBO
 from .shader import Shader
+
+from .GLGelSlimItem import GLGelSimItem

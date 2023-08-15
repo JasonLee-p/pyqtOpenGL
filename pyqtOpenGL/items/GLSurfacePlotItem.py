@@ -6,29 +6,23 @@ from ..transform3d import Matrix4x4, Vector3
 from .shader import Shader
 from .BufferObject import VAO, VBO, EBO, c_void_p
 from .MeshData import Material
-from .GLBoxItem import GLBoxItem
 from .texture import Texture2D
+from .light import LightMixin, light_fragment_shader
 
 BASE_DIR = Path(__file__).resolve().parent
 
 __all__ = ['GLSurfacePlotItem']
 
 
-class GLSurfacePlotItem(GLGraphicsItem):
+class GLSurfacePlotItem(GLGraphicsItem, LightMixin):
 
     def __init__(
         self,
         zmap = None,
         x_size = 10, # scale width to this size
-        calc_normals = True,
-        material = {
-            "COLOR_AMBIENT": [1.0, 1.0, 1.0],
-            "COLOR_DIFFUSE": [1.0, 1.0, 1.0],
-            "COLOR_SPECULAR": [1.0, 1.0, 1.0],
-            "SHININESS": 10.0,
-            "OPACITY": 1.0,
-        },
-        glOptions = 'opaque',
+        material = dict(),
+        lights = list(),
+        glOptions = 'translucent',
         parentItem = None
     ):
         super().__init__(parentItem=parentItem)
@@ -37,27 +31,18 @@ class GLSurfacePlotItem(GLGraphicsItem):
         self._zmap = None
         self._shape = (0, 0)
         self._x_size = x_size
-        self._calc_normals = calc_normals
         self._vert_update_flag = False
         self._indice_update_flag = False
         self._vertexes = None
         self._normals = None
         self._indices = None
         self.setData(zmap)
-        self._material = Material(
-            material["COLOR_AMBIENT"],
-            material["COLOR_DIFFUSE"],
-            material["COLOR_SPECULAR"],
-            material["SHININESS"],
-            material["OPACITY"],
-        )
 
-        self.rotate(-90, 1, 0, 0)
+        # material
+        self.setMaterial(material)
 
-        self.lightPos = Vector3([3, 3.0, 7])
-        self.lightColor = Vector3([1, 1, 1])
-        self.lightBox = GLBoxItem(size=(0.5, 0.5, 0.5), color=self.lightColor)
-        self.lightBox.moveTo(*self.lightPos)
+        # light
+        self.addLight(lights)
 
     def setData(self, zmap=None):
         if zmap is not None:
@@ -94,7 +79,7 @@ class GLSurfacePlotItem(GLGraphicsItem):
 
         # calc normals texture
         v = self._vertexes[self._indices]  # Nf x 3 x 3
-        v = np.cross(v[:,1]-v[:,0], v[:,2]-v[:,0]) # Nf(c*r*2) x 3
+        v = np.cross(v[:,1]-v[:,0], v[:,2]-v[:,0]) # face Normal Nf(c*r*2) x 3
         v = v.reshape(h-1, 2, w-1, 3).sum(axis=1, keepdims=False)  # r x c x 3
         self._normal_texture = v / np.linalg.norm(v, axis=-1, keepdims=True)
 
@@ -113,43 +98,12 @@ class GLSurfacePlotItem(GLGraphicsItem):
             indices[start+cols:start+(cols*2)] = rowtemplate2 + row * (cols+1)
         return indices
 
-    def face_normals(self):
-        if self._indices is None:
-            return
-        v = self._vertexes[self._indices]  # Nf x 3 x 3
-        return  np.cross(v[:,1]-v[:,0], v[:,2]-v[:,0])  # Nf x 3
-
-    def vert_normals(self):
-        """
-        Return an array of normal vectors.
-        By default, the array will be (N, 3) with one entry per unique vertex in the mesh.
-        """
-        faceNorms = self.face_normals()
-        vert_to_face = [[] for i in range(len(self._vertexes))]
-        for i in range(self._indices.shape[0]):
-            face = self._indices[i]
-            for ind in face:
-                vert_to_face[ind].append(i)
-
-        normals = np.empty(self._vertexes.shape, dtype='f4')
-        for vi in range(self._vertexes.shape[0]):
-            faces = vert_to_face[vi]
-            if len(faces) == 0:
-                normals[vi] = (0,0,0)
-                continue
-            norms = faceNorms[faces]  ## get all face normals
-            norm = norms.sum(axis=0)       ## sum normals
-            norm /= (norm**2).sum()**0.5  ## and re-normalize
-            normals[vi] = norm
-        return normals
-
     def initializeGL(self):
-        self.shader = Shader(vertex_shader, fragment_shader)
+        self.shader = Shader(vertex_shader, light_fragment_shader)
         self.vao = VAO()
         self.vbo = VBO([None], [3], usage = gl.GL_DYNAMIC_DRAW)
         self.ebo = EBO(None)
-
-        self.view().addItem(self.lightBox)
+        self.texture = Texture2D(None, flip_x=False, flip_y=True)
 
     def updateGL(self):
         if not self._vert_update_flag:
@@ -157,11 +111,13 @@ class GLSurfacePlotItem(GLGraphicsItem):
 
         self.vao.bind()
         self.vbo.updateData([0], [self._vertexes])
+
         self.vbo.setAttrPointer([0], attr_id=[0])
         if self._indice_update_flag:
             self.ebo.updateData(self._indices)
-
-        self.texture = Texture2D(self._normal_texture, flip_y=True, flip_x=False)
+        if self.texture is not None:
+            self.texture.delete()
+        self.texture.updateTexture(self._normal_texture)
         self._vert_update_flag = False
         self._indice_update_flag = False
 
@@ -171,39 +127,29 @@ class GLSurfacePlotItem(GLGraphicsItem):
         self.updateGL()
         self.setupGLState()
 
-        # gl.glLineWidth(2.0)  # 设置线条宽度
-        gl.glDisable(gl.GL_LINE_SMOOTH)
-
-        for idx, texture in enumerate(self._material.textures):
-            texture.bind(idx)
-            self.shader.set_uniform(name=texture.type, data=idx, type="Sampler2D")
-        self.shader.set_uniform("opacity", self._material.opacity, "float")
-        self.shader.set_uniform("objColor", self._material.diffuse, "vec3")
-
         self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
         self.shader.set_uniform("model", model_matrix.glData, "mat4")
-        self.shader.set_uniform("lightPos", self.lightPos, "vec3")
-        self.shader.set_uniform("lightColor", self.lightColor, "vec3")
-        self.shader.set_uniform("texScale", self.xy_size, "vec2")
+        self.shader.set_uniform("ViewPos",self.view_pos(), "vec3")
+
+        self._material.set_uniform(self.shader, "material")
+        self.setupLight()
 
         self.texture.bind(0)
         self.shader.set_uniform("norm_texture", self.texture.unit, "sampler2D")
+        self.shader.set_uniform("texScale", self.xy_size, "vec2")
 
         with self.shader:
             self.vao.bind()
             gl.glDrawElements(gl.GL_TRIANGLES, self._indices.size, gl.GL_UNSIGNED_INT, c_void_p(0))
-        # gl.glDrawArrays(gl.GL_POINTS, 0, self._vertexes.shape[0])
 
-    def setLight(self, pos=None, color=None, transform: Matrix4x4=None):
-        if pos is not None:
-            self.lightPos = Vector3(pos)
-            self.lightBox.moveTo(*self.lightPos)
-        if color is not None:
-            self.lightColor = Vector3(color)
-        if transform is not None:
-            self.lightPos = Vector3(transform * self.lightPos)
-            self.lightBox.moveTo(*self.lightPos)
-        self.update()
+    def setMaterial(self, material):
+        if isinstance(material, dict):
+            self._material = Material(material)
+        elif isinstance(material, Material):
+            self._material = material
+
+    def getMaterial(self):
+        return self._material
 
 
 vertex_shader = """
@@ -225,33 +171,5 @@ void main() {
 
     FragPos = vec3(model * vec4(aPos, 1.0));
     gl_Position = view * vec4(FragPos, 1.0);
-}
-"""
-
-fragment_shader = """
-#version 330 core
-out vec4 FragColor;
-
-in vec3 FragPos;
-in vec3 Normal;
-
-uniform vec3 lightColor;
-uniform vec3 lightPos;
-uniform float opacity;
-uniform vec3 objColor;
-
-void main() {
-    // ambient
-    float ambientStrength = 0.5;
-    vec3 ambient = ambientStrength * lightColor * objColor;
-
-    // diffuse
-    vec3 norm = normalize(Normal);
-    vec3 lightDir = normalize(lightPos - FragPos);
-    float diff = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse = 0.5*lightColor * (diff * objColor);
-
-    vec3 result = ambient + diffuse;
-    FragColor = vec4(result, opacity);
 }
 """

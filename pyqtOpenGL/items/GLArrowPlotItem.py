@@ -11,7 +11,7 @@ __all__ = ['GLArrowPlotItem']
 
 class GLArrowPlotItem(GLGraphicsItem):
     """
-    Displays three lines indicating origin and orientation of local coordinate system.
+    Displays Arrows.
     """
 
     def __init__(

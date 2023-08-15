@@ -99,7 +99,7 @@ class GLAxisItem(GLGraphicsItem):
             gl.glEnable(gl.GL_LINE_SMOOTH)
             gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
         gl.glLineWidth(self.__width)
-        self.shader.set_uniform("size", self.size(), "vec3")
+        self.shader.set_uniform("sizev3", self.size(), "vec3")
         self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
         self.shader.set_uniform("model", model_matrix.glData, "mat4")
 
@@ -121,7 +121,7 @@ vertex_shader = """
 
 uniform mat4 model;
 uniform mat4 view;
-uniform vec3 size;
+uniform vec3 sizev3;
 
 layout (location = 0) in vec3 stPos;
 layout (location = 1) in vec3 endPos;
@@ -134,8 +134,8 @@ out V_OUT {
 
 void main() {
     mat4 matrix = view * model;
-    gl_Position =  matrix * vec4(stPos * size, 1.0);
-    v_out.endPos = matrix * vec4(endPos * size, 1.0);
+    gl_Position =  matrix * vec4(stPos * sizev3, 1.0);
+    v_out.endPos = matrix * vec4(endPos * sizev3, 1.0);
     v_out.color = iColor;
 }
 """

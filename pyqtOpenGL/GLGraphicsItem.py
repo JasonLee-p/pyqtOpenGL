@@ -22,6 +22,15 @@ GLOptions = {
         'glDepthMask': (GL_TRUE,),
         'glBlendFunc': (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA),
     },
+    'translucent_cull': {
+        GL_DEPTH_TEST: True,
+        GL_BLEND: True,
+        GL_ALPHA_TEST: False,
+        GL_CULL_FACE: True,
+        'glCullFace': (GL_BACK,),
+        'glDepthMask': (GL_TRUE,),
+        'glBlendFunc': (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA),
+    },
     'additive': {
         GL_DEPTH_TEST: False,
         GL_BLEND: True,
@@ -208,6 +217,9 @@ class GLGraphicsItem(QtCore.QObject):
         if not self.__initialized:
             if self.view() is None:
                 self.setView(self.__parent.view())
+                # register lights to view
+                if hasattr(self, 'lights'):
+                    self.__view.lights |= set(self.lights)
             self.initializeGL()
             self.__initialized = True
 
@@ -233,6 +245,7 @@ class GLGraphicsItem(QtCore.QObject):
         v = self.view()
         if v is None:
             return
+
         v.update()
 
     def proj_view_matrix(self) -> Matrix4x4:
@@ -282,7 +295,8 @@ class GLGraphicsItem(QtCore.QObject):
         The widget's GL context is made current before this method is called.
         (So this would be an appropriate time to generate lists, upload textures, etc.)
         """
-        raise NotImplementedError()
+        pass
+        # raise NotImplementedError()
 
     def paint(self, model_matrix=Matrix4x4()):
         """
@@ -291,8 +305,9 @@ class GLGraphicsItem(QtCore.QObject):
         It is the responsibility of the item to set up its own modelview matrix,
         but the caller will take care of pushing/popping.
         """
-        self.setupGLState()
-        raise NotImplementedError()
+        pass
+        # self.setupGLState()
+        # raise NotImplementedError()
 
 
 class Material:

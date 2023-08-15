@@ -34,7 +34,7 @@ class Texture2D:
 
     def __init__(
         self,
-        source,
+        source = None,
         tex_type: str = None,
         mag_filter = gl.GL_LINEAR,
         min_filter = gl.GL_LINEAR_MIPMAP_LINEAR,
@@ -44,29 +44,24 @@ class Texture2D:
         flip_x = False,
         generate_mipmaps=True,
     ):
-        self._id = gl.glGenTextures(1)
+        self._id = None
         self.flip_y = flip_y
         self.flip_x = flip_x
+        self.mag_filter = mag_filter
+        self.min_filter = min_filter
+        self.wrap_s = wrap_s
+        self.wrap_t = wrap_t
         self.type = tex_type
-
-        self.loadTexture(source)
-
-        if generate_mipmaps:
-            gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
-
-        # -- texture wrapping
-        gl.glTexParameter(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, wrap_s)
-        gl.glTexParameter(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, wrap_t)
-        # -- texture filterting
-        gl.glTexParameter(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, min_filter)
-        gl.glTexParameter(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, mag_filter)
+        self.generate_mipmaps = generate_mipmaps
+        if source is not None:
+            self.updateTexture(source)
 
     def bind(self, unit):
         gl.glActiveTexture(gl.GL_TEXTURE0 + unit)
         gl.glBindTexture(gl.GL_TEXTURE_2D, self._id)
         self.unit = unit
 
-    def loadTexture(self, img: Union[str, np.ndarray]):
+    def updateTexture(self, img: Union[str, np.ndarray]):
         if not isinstance(img, np.ndarray):
             self._path = str(img)
             img = np.array(Image.open(self._path))
@@ -82,6 +77,8 @@ class Texture2D:
         else:
             gl.glPixelStorei( gl.GL_UNPACK_ALIGNMENT, 4)
 
+        self.delete()
+        self._id = gl.glGenTextures(1)
         gl.glBindTexture(gl.GL_TEXTURE_2D, self._id)
         gl.glTexImage2D(
             gl.GL_TEXTURE_2D, 0,
@@ -91,6 +88,21 @@ class Texture2D:
             self.DataType[dtype],
             img,
         )
+
+        if self.generate_mipmaps:
+            gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
+        # -- texture wrapping
+        gl.glTexParameter(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, self.wrap_s)
+        gl.glTexParameter(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, self.wrap_t)
+        # -- texture filterting
+        gl.glTexParameter(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, self.min_filter)
+        gl.glTexParameter(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, self.mag_filter)
+
+    def delete(self):
+        if self._id is not None:
+            gl.glDeleteTextures([self._id])
+            self._id == None
+
 
 def flip_image(img, flip_x=False, flip_y=False):
     if flip_x and flip_y:

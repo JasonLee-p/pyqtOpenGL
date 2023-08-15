@@ -52,10 +52,11 @@ class GLTextItem(GLGraphicsItem):
         self.vao = VAO()
         self.vbo = VBO([self.vertices], [[3, 2]], usage=gl.GL_STATIC_DRAW)
         self.vbo.setAttrPointer([0], attr_id=[[0,1]])
+        self.tex = Texture2D(None, flip_y=True, wrap_s=gl.GL_CLAMP_TO_EDGE, wrap_t=gl.GL_CLAMP_TO_EDGE)
 
     def updateGL(self):
         if self._tex_update_flag:
-            self.tex = Texture2D(self._image, flip_y=True, wrap_s=gl.GL_CLAMP_TO_EDGE, wrap_t=gl.GL_CLAMP_TO_EDGE)
+            self.tex.updateTexture(self._image)
             self._tex_update_flag = False
 
         if self._wh_update_flag:

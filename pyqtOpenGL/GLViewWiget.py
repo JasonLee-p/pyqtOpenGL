@@ -26,6 +26,7 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         self.camera = Camera(cam_position, yaw, pitch, fov)
         self.bg_color = bg_color
         self.items = []
+        self.lights = set()
 
     def get_proj_view_matrix(self):
         view = self.camera.get_view_matrix()
@@ -61,6 +62,8 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
     def addItem(self, item):
         self.items.append(item)
         item.setView(self)
+        if hasattr(item, 'lights'):
+            self.lights |= set(item.lights)
         self.update()
 
     def removeItem(self, item):
@@ -100,6 +103,8 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         glClearColor(*self.bg_color)
         glDepthMask(GL_TRUE)
         glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT )
+        for light in self.lights:  # update light only once per frame
+            light._update_flag = True
         self.drawItems()
 
     def drawItems(self):

@@ -7,6 +7,11 @@ from .shader import Shader
 from .BufferObject import VAO, VBO, EBO
 from .texture import Texture2D
 from ..transform3d import Vector3
+from functools import singledispatchmethod
+
+__all__ = [
+    "Mesh", "Material", "cone", "direction_matrixs", "sphere", "cylinder", "cube", "vertex_normal"
+]
 
 Vec2 = (2 * c_float)
 Vec3 = (3 * c_float)
@@ -21,13 +26,14 @@ TextureType = {
 
 class Material():
 
+    @singledispatchmethod
     def __init__(
         self,
-        ambient,
-        diffuse,
-        specular,
-        shininess,
-        opacity,
+        ambient = [0.4, 0.4, 0.4],
+        diffuse = [1.0, 1.0, 1.0],
+        specular = [0.2, 0.2, 0.2],
+        shininess = 10,
+        opacity = 1,
         textures: dict = None,
         directory = None,
     ):
@@ -40,8 +46,20 @@ class Material():
         self.directory = directory
         self.textures = list()
 
+    @__init__.register(dict)
+    def _(self, material_dict: dict, directory=None):
+        self.__init__(
+            material_dict.get("COLOR_AMBIENT", [0.4, 0.4, 0.4]),  # Ka
+            material_dict.get("COLOR_DIFFUSE", [1.0, 1.0, 1.0]),  # Kd
+            material_dict.get("COLOR_SPECULAR", [0.2, 0.2, 0.2]),  # Ks
+            material_dict.get("SHININESS", 10),
+            material_dict.get("OPACITY", 1),
+            material_dict.get("TEXTURES", None),
+            directory,
+        )
+
     def load_textures(self):
-        # print(self.tex)
+        """在 initializeGL() 中调用 """
         for type, paths in self.textures_path.items():
             self.textures.append(
                 Texture2D(self.directory / paths[0], tex_type=TextureType[type])
@@ -61,37 +79,76 @@ class Material():
         shader.set_uniform(name+".opacity", self.opacity, "float")
         shader.set_uniform(name+".use_texture", use_texture, "bool")
 
-class PointLight():
+    def set_data(self, ambient=None, diffuse=None, specular=None, shininess=None, opacity=None):
+        if ambient is not None:
+            self.ambient = Vector3(ambient)
+        if diffuse is not None:
+            self.diffuse = Vector3(diffuse)
+        if specular is not None:
+            self.specular = Vector3(specular)
+        if shininess is not None:
+            self.shininess = shininess
+        if opacity is not None:
+            self.opacity = opacity
+
+
+class Mesh():
 
     def __init__(
         self,
-        position = Vector3(0.0, 0.0, 0.0),
-        ambient = Vector3(0.05, 0.05, 0.05),
-        diffuse = Vector3(0.8, 0.8, 0.8),
-        specular = Vector3(1.0, 1.0, 1.0),
-        constant = 1.0,
-        linear = 0.09,
-        quadratic = 0.032,
+        vertexes,
+        indices,
+        texcoords = None,
+        normals = None,
+        material = None,
+        directory = None,
+        usage = gl.GL_STATIC_DRAW,
+        texcoords_scale = 1,
+        calc_normals = False,
     ):
-        self.position = position
-        self.amibent = ambient
-        self.diffuse = diffuse
-        self.specular = specular
-        self.constant = constant
-        self.linear = linear
-        self.quadratic = quadratic
+        self._vertexes = np.array(vertexes, dtype=np.float32)
+        self._indices = np.array(indices, dtype=np.uint32)
 
-    def set_uniform(self, shader: Shader, name: str):
-        shader.set_uniform(name + ".position", self.position, "vec3")
-        shader.set_uniform(name + ".ambient", self.amibent, "vec3")
-        shader.set_uniform(name + ".diffuse", self.diffuse, "vec3")
-        shader.set_uniform(name + ".specular", self.specular, "vec3")
-        shader.set_uniform(name + ".constant", self.constant, "float32")
-        shader.set_uniform(name + ".linear", self.linear, "float32")
-        shader.set_uniform(name + ".quadratic", self.quadratic, "float32")
+        if calc_normals and normals is None:
+            self._normals = vertex_normal(self._vertexes, self._indices)
+        else:
+            self._normals = np.array(normals, dtype=np.float32)
 
-    def set_pos(self, pos):
-        self.position = Vector3(pos)
+        if len(texcoords) != self._vertexes.shape[0]:
+            texcoords = texcoords[0]
+        self._texcoords = np.array(texcoords, dtype=np.float32)[..., :2] / texcoords_scale
+
+        if isinstance(material, dict):
+            self._material = Material(material, directory)
+        elif isinstance(material, Material):
+            self._material = material
+
+        self._usage = usage
+
+    def initializeGL(self):
+        self.vao = VAO()
+        self.vbo = VBO(
+            [self._vertexes, self._normals, self._texcoords],
+            [3, 3, 2],
+            usage=self._usage
+        )
+        self.vbo.setAttrPointer([0, 1, 2], attr_id=[0, 1, 2])
+        self.ebo = EBO(self._indices)
+        self._material.load_textures()
+
+    def paint(self, shader):
+        self._material.set_uniform(shader, "material")
+        self.vao.bind()
+        gl.glDrawElements(gl.GL_TRIANGLES, self._indices.size, gl.GL_UNSIGNED_INT, c_void_p(0))
+
+    def setMaterial(self, material=None):
+        if isinstance(material, dict):
+            self._material = Material(material)
+        elif isinstance(material, Material):
+            self._material = material
+
+    def getMaterial(self):
+        return self._material
 
 
 def cone(radius, height, slices=12):
@@ -112,6 +169,7 @@ def cone(radius, height, slices=12):
         indices[i*6+5] = (i+1) % slices
         indices[i*6+4] = slices+1
     return vertices, indices.reshape(-1, 3)
+
 
 def direction_matrixs(starts, ends):
     arrows = ends - starts
@@ -174,6 +232,7 @@ def sphere(radius=1.0, rows=12, cols=12, offset=True):
         faces[faces>vmax] = vmax
         return verts, faces
 
+
 def cylinder(radius=[1.0, 1.0], length=1.0, rows=12, cols=12, offset=False):
     """
     Return a MeshData instance with vertexes and faces computed
@@ -221,11 +280,65 @@ def cylinder(radius=[1.0, 1.0], length=1.0, rows=12, cols=12, offset=False):
 
     return verts, faces
 
+def cube(x, y, z):
+    """
+    Return a MeshData instance with vertexes and normals computed
+    for a rectangular cuboid of the given dimensions.
+    """
+    vertices = np.array( [
+        # 顶点坐标           # 法向量
+        -0.5, -0.5, -0.5,  0.0,  0.0, -1.0,
+         0.5, -0.5, -0.5,  0.0,  0.0, -1.0,
+         0.5,  0.5, -0.5,  0.0,  0.0, -1.0,
+         0.5,  0.5, -0.5,  0.0,  0.0, -1.0,
+        -0.5,  0.5, -0.5,  0.0,  0.0, -1.0,
+        -0.5, -0.5, -0.5,  0.0,  0.0, -1.0,
+
+        -0.5, -0.5,  0.5,  0.0,  0.0,  1.0,
+         0.5, -0.5,  0.5,  0.0,  0.0,  1.0,
+         0.5,  0.5,  0.5,  0.0,  0.0,  1.0,
+         0.5,  0.5,  0.5,  0.0,  0.0,  1.0,
+        -0.5,  0.5,  0.5,  0.0,  0.0,  1.0,
+        -0.5, -0.5,  0.5,  0.0,  0.0,  1.0,
+
+        -0.5,  0.5,  0.5, -1.0,  0.0,  0.0,
+        -0.5,  0.5, -0.5, -1.0,  0.0,  0.0,
+        -0.5, -0.5, -0.5, -1.0,  0.0,  0.0,
+        -0.5, -0.5, -0.5, -1.0,  0.0,  0.0,
+        -0.5, -0.5,  0.5, -1.0,  0.0,  0.0,
+        -0.5,  0.5,  0.5, -1.0,  0.0,  0.0,
+
+         0.5,  0.5,  0.5,  1.0,  0.0,  0.0,
+         0.5,  0.5, -0.5,  1.0,  0.0,  0.0,
+         0.5, -0.5, -0.5,  1.0,  0.0,  0.0,
+         0.5, -0.5, -0.5,  1.0,  0.0,  0.0,
+         0.5, -0.5,  0.5,  1.0,  0.0,  0.0,
+         0.5,  0.5,  0.5,  1.0,  0.0,  0.0,
+
+        -0.5, -0.5, -0.5,  0.0, -1.0,  0.0,
+         0.5, -0.5, -0.5,  0.0, -1.0,  0.0,
+         0.5, -0.5,  0.5,  0.0, -1.0,  0.0,
+         0.5, -0.5,  0.5,  0.0, -1.0,  0.0,
+        -0.5, -0.5,  0.5,  0.0, -1.0,  0.0,
+        -0.5, -0.5, -0.5,  0.0, -1.0,  0.0,
+
+        -0.5,  0.5, -0.5,  0.0,  1.0,  0.0,
+         0.5,  0.5, -0.5,  0.0,  1.0,  0.0,
+         0.5,  0.5,  0.5,  0.0,  1.0,  0.0,
+         0.5,  0.5,  0.5,  0.0,  1.0,  0.0,
+        -0.5,  0.5,  0.5,  0.0,  1.0,  0.0,
+        -0.5,  0.5, -0.5,  0.0,  1.0,  0.0
+    ], dtype="f4").reshape(-1, 6)
+
+    return vertices[:, :3] * np.array([x,y,z], dtype='f4'), vertices[:, 3:]
+
+
 def face_normal(v1, v2, v3):
     """计算一个三角形的法向量"""
     a = v2 - v1 # 三角形的一条边
     b = v3 - v1 # 三角形的另一条边
     return np.cross(a, b)
+
 
 def vertex_normal(vert, ind):
     """计算每个顶点的法向量"""

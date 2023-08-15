@@ -12,7 +12,7 @@ __all__ = ['GLImageItem']
 
 
 class GLImageItem(GLGraphicsItem):
-    """Draws points at a list of 3D positions."""
+    """Display Image."""
 
     def __init__(
         self,
@@ -47,12 +47,13 @@ class GLImageItem(GLGraphicsItem):
         self.vao = VAO()
         self.vbo = VBO([self.vertices], [[3, 2]], usage=gl.GL_STATIC_DRAW)
         self.vbo.setAttrPointer([0], attr_id=[[0,1]])
+        self.texture = Texture2D(None, flip_y=True)
 
     def updateGL(self):
         if not self._tex_update_flag and not self._vbo_update_flag:
             return
         if self._tex_update_flag:
-            self.texture = Texture2D(source="J:\\pyqt-opengl\\sample_26.jpg", flip_y=True)
+            self.texture.updateTexture(self._img)
             self._tex_update_flag = False
         if self._vbo_update_flag:
             self.vbo.updateData([0], [self.vertices])

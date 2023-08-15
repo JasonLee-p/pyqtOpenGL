@@ -91,7 +91,7 @@ class GLBoxItem(GLGraphicsItem):
             gl.glEnable(gl.GL_LINE_SMOOTH)
             gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
 
-        self.shader.set_uniform("size", self.size(), "vec3")
+        self.shader.set_uniform("sizev3", self.size(), "vec3")
         self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
         self.shader.set_uniform("model", model_matrix.glData, "mat4")
 
@@ -109,7 +109,7 @@ vertex_shader = """
 
 uniform mat4 model;
 uniform mat4 view;
-uniform vec3 size;
+uniform vec3 sizev3;
 
 layout (location = 0) in vec3 iPos;
 layout (location = 1) in vec3 iNormal;
@@ -118,7 +118,7 @@ out vec3 FragPos;
 out vec3 Normal;
 
 void main() {
-    FragPos = vec3(model * vec4(iPos*size, 1.0));
+    FragPos = vec3(model * vec4(iPos*sizev3, 1.0));
     Normal = normalize(mat3(transpose(inverse(model))) * iNormal);
 
     gl_Position = view * vec4(FragPos, 1.0);

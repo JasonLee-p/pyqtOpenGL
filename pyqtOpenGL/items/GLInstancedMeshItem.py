@@ -5,20 +5,20 @@ from .BufferObject import VBO, EBO, VAO
 from ..GLGraphicsItem import GLGraphicsItem
 from ..transform3d import Matrix4x4, Vector3
 from .MeshData import cone, direction_matrixs, vertex_normal
+from .light import LightMixin
 
-__all__ = ['GLMeshItem']
+__all__ = ['GLInstancedMeshItem']
 
 
-class GLMeshItem(GLGraphicsItem):
-    """
-    Displays three lines indicating origin and orientation of local coordinate system.
-    """
+class GLInstancedMeshItem(GLGraphicsItem, LightMixin):
 
     def __init__(
         self,
         pos = [[0, 0, 0]],  # nx3
         vertexes = None,
         indices = None,
+        normals = None,
+        lights = list(),
         color = [1., 1., 1.],
         size = 1.,
         glOptions = 'opaque',
@@ -29,13 +29,14 @@ class GLMeshItem(GLGraphicsItem):
         self.setGLOptions(glOptions)
         self._vertices = vertexes
         self._indices = indices
+        self._normals = normals
         self._pos = None
         self._calcNormals = calcNormals
-        if self._calcNormals:
+        if self._calcNormals and self._normals is None and self._indices is not None:
             self._normals = vertex_normal(self._vertices, self._indices)
-        else:
-            self._normals = None
+
         self.setData(pos, color, size)
+        self.addLight(lights)
 
     def setData(self, pos=None, color=None, size=None):
         if pos is not None:
@@ -63,7 +64,8 @@ class GLMeshItem(GLGraphicsItem):
         else:
             self.vbo_mesh.setAttrPointer([0], divisor=0, attr_id=[0])
 
-        self.ebo = EBO(self._indices)
+        if self._indices is not None:
+            self.ebo = EBO(self._indices)
 
         # pos
         self.vbo_pos = VBO([self._pos, self._color], [3,3], usage=gl.GL_DYNAMIC_DRAW)
@@ -85,55 +87,32 @@ class GLMeshItem(GLGraphicsItem):
         self.setupGLState()
         self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
         self.shader.set_uniform("model", model_matrix.glData, "mat4")
+        self.shader.set_uniform("ViewPos",self.view_pos(), "vec3")
         self.shader.set_uniform("size", self._size, "float")
-
-        self.shader.set_uniform("lightPos", Vector3([300, 200.0, 200.0]), "vec3")
-        self.shader.set_uniform("lightColor", Vector3([1.0, 1.0, 1.0]), "vec3")
         self.shader.set_uniform("calcNormal", self._calcNormals, "bool")
-
-        self.vao.bind()
-        self.ebo.bind()
+        self.setupLight()
 
         # gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
 
+        self.vao.bind()
         with self.shader:
-            gl.glDrawElementsInstanced(
-                gl.GL_TRIANGLES,
-                self._indices.size,
-                gl.GL_UNSIGNED_INT, None,
-                self._pos.shape[0],
-            )
+            if self._indices is not None:
+                self.ebo.bind()
+                gl.glDrawElementsInstanced(
+                    gl.GL_TRIANGLES,
+                    self._indices.size,
+                    gl.GL_UNSIGNED_INT, None,
+                    self._pos.shape[0],
+                )
+            else:
+                gl.glDrawArraysInstanced(
+                    gl.GL_TRIANGLES,
+                    0,
+                    self._vertices.size,
+                    self._pos.shape[0],
+                )
         # gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 
-
-# vertex_shader = """
-# #version 330 core
-
-# uniform mat4 model;
-# uniform mat4 view;
-# uniform float size;
-
-# layout (location = 0) in vec3 iPos;
-# layout (location = 2) in vec3 stPos;
-# layout (location = 3) in vec3 iColor;
-# out vec3 oColor;
-
-# void main() {
-#     gl_Position =  view * model * vec4(stPos + iPos*size, 1.0);
-#     oColor = iColor;
-# }
-# """
-
-# fragment_shader = """
-# #version 330 core
-
-# in vec3 oColor;
-# out vec4 fragColor;
-
-# void main() {
-#     fragColor = vec4(oColor, 1.0f);
-# }
-# """
 
 vertex_shader = """
 #version 330 core
@@ -143,22 +122,22 @@ uniform mat4 view;
 uniform float size;
 uniform bool calcNormal;
 
-layout (location = 0) in vec3 iPos;
-layout (location = 1) in vec3 iNormal;
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNormal;
 layout (location = 2) in vec3 stPos;
-layout (location = 3) in vec3 iColor;
+layout (location = 3) in vec3 aColor;
 
 out vec3 FragPos;
 out vec3 Normal;
 out vec3 oColor;
 
 void main() {
-    oColor = iColor;
-    FragPos = vec3(model * vec4(stPos + iPos*size, 1.0));
+    oColor = aColor;
+    FragPos = vec3(model * vec4(stPos + aPos*size, 1.0));
     if (calcNormal){
-        Normal = normalize(mat3(transpose(inverse(model))) * iNormal);
+        Normal = normalize(mat3(transpose(inverse(model))) * aNormal);
     } else {
-        Normal = vec3(0, 0, 0);
+        Normal = vec3(0, 0, 1);
     }
     gl_Position = view * vec4(FragPos, 1.0);
 }
@@ -169,29 +148,50 @@ fragment_shader = """
 #version 330 core
 out vec4 FragColor;
 
+in vec3 oColor;
 in vec3 FragPos;
 in vec3 Normal;
-in vec3 oColor;
 
-uniform vec3 lightColor;
-uniform vec3 lightPos;
-uniform bool calcNormal;
+uniform vec3 ViewPos;
+
+struct PointLight {
+    vec3 position;
+
+    float constant;
+    float linear;
+    float quadratic;
+
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+};
+#define MAX_POINT_LIGHTS 10
+uniform PointLight pointLight[MAX_POINT_LIGHTS];
+uniform int nr_point_lights;
+
+float shininess = 32.0;
+
+vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewPos)
+{
+    vec3 viewDir = normalize(viewPos - fragPos);
+    vec3 lightDir = normalize(light.position - fragPos);
+    // 漫反射着色
+    float diff = max(dot(normal, lightDir), 0.0);
+    // 镜面光着色
+    vec3 reflectDir = normalize(reflect(-lightDir, normal));
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+    // 合并结果
+    vec3 ambient  = light.ambient  * oColor * 0.4;
+    vec3 diffuse  = light.diffuse  * diff * oColor * 0.6;
+    vec3 specular = light.specular * spec * oColor * 0.2;
+
+    return ambient + specular + diffuse;
+}
 
 void main() {
-    if (calcNormal){
-        // ambient
-        float ambientStrength = 0.4;
-        vec3 ambient = ambientStrength * lightColor * oColor;
-
-        // diffuse
-        vec3 lightDir = normalize(lightPos - FragPos);
-        float diff = max(dot(Normal, lightDir), 0.0);
-        vec3 diffuse = lightColor * (diff * oColor);
-
-        vec3 result = ambient + diffuse;
-        FragColor = vec4(result, 1.0);
-    } else {
-        FragColor = vec4(oColor, 1.0f);
-    }
+    vec3 result = vec3(0);
+    for(int i = 0; i < nr_point_lights; i++)
+        result += CalcPointLight(pointLight[i], Normal, FragPos, ViewPos);
+    FragColor = vec4(result, 1.0);
 }
 """

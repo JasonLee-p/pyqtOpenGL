@@ -199,7 +199,7 @@ class Matrix4x4(QMatrix4x4):
             return cls()
         rot = cls()
         rot.rotate(angle, x, y, z)
-        return cls(rot)
+        return rot
 
     @classmethod
     def fromQuaternion(cls, q):
@@ -290,6 +290,51 @@ class Vector3():
 
     def __iadd__(self, other):
         self._data += other._data
+        return self
+
+    def __mul__(self, other):
+        if isinstance(other, (int, float)):
+            return Vector3(self._data * other)
+        elif isinstance(other, (Vector3, np.ndarray, list, tuple)):
+            return Vector3(self._data[0] * other[0],
+                           self._data[1] * other[1],
+                           self._data[2] * other[2])
+        else:
+            raise TypeError(f"unsupported type {type(other)}")
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+    def __imul__(self, other):
+        if isinstance(other, (int, float)):
+            self._data *= other
+        elif isinstance(other, (Vector3, np.ndarray, list, tuple)):
+            self._data[0] *= other[0]
+            self._data[1] *= other[1]
+            self._data[2] *= other[2]
+        else:
+            raise TypeError(f"unsupported type {type(other)}")
+        return self
+
+    def __truediv__(self, other):
+        if isinstance(other, (int, float)):
+            return Vector3(self._data / other)
+        elif isinstance(other, (Vector3, np.ndarray, list, tuple)):
+            return Vector3(self._data[0] / other[0],
+                           self._data[1] / other[1],
+                           self._data[2] / other[2])
+        else:
+            raise TypeError(f"unsupported type {type(other)}")
+
+    def __itruediv__(self, other):
+        if isinstance(other, (int, float)):
+            self._data /= other
+        elif isinstance(other, (Vector3, np.ndarray, list, tuple)):
+            self._data[0] /= other[0]
+            self._data[1] /= other[1]
+            self._data[2] /= other[2]
+        else:
+            raise TypeError(f"unsupported type {type(other)}")
         return self
 
     @property

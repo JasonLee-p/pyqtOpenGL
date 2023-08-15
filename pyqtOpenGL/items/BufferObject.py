@@ -2,7 +2,6 @@ import OpenGL.GL as gl
 from typing import List, Union
 import numpy as np
 from ctypes import c_uint, c_float, c_void_p
-import ctypes
 
 GL_Type = {
     np.dtype("f4"): gl.GL_FLOAT,
@@ -120,18 +119,20 @@ class VBO():
     def _loadSubDatas(self, block_id: List[int], data: List[np.ndarray]):
         """load data to buffer"""
         self.bind()
+
         if self.buffer_need_init:
             self.buffer_need_init = False
             for id, da in zip(block_id, data):
                 offset, size = self.blocks.locBlock(id)
                 gl.glBufferSubData(gl.GL_ARRAY_BUFFER, offset, size, da)
         else:
-            buf = gl.glMapBuffer(gl.GL_ARRAY_BUFFER, gl.GL_WRITE_ONLY)
+            # buf = gl.glMapBuffer(gl.GL_ARRAY_BUFFER, gl.GL_WRITE_ONLY)
             for id, da in zip(block_id, data):
                 offset = self.blocks.block_offsets[id]
                 length = self.blocks.block_used[id]
-                ctypes.memmove(buf+offset, da.ctypes.data, length)
-            gl.glUnmapBuffer(gl.GL_ARRAY_BUFFER)
+                gl.glBufferSubData(gl.GL_ARRAY_BUFFER, offset, length, da)
+            #     ctypes.memmove(buf+offset, da.ctypes.data, length)
+            # gl.glUnmapBuffer(gl.GL_ARRAY_BUFFER)
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
 
     def updateData(self, block_id: List[int], data: List[np.ndarray]):
