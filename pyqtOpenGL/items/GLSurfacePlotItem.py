@@ -36,6 +36,7 @@ class GLSurfacePlotItem(GLGraphicsItem, LightMixin):
         self._vertexes = None
         self._normals = None
         self._indices = None
+        self.scale_ratio = 1
         self.setData(zmap)
 
         # material
@@ -60,10 +61,10 @@ class GLSurfacePlotItem(GLGraphicsItem, LightMixin):
             self._shape = zmap.shape
             self._indice_update_flag = True
 
-            scale = self._x_size / w
+            self.scale_ratio = self._x_size / w
             x_size = self._x_size
-            y_size = scale * h
-            zmap = zmap * scale
+            y_size = self.scale_ratio * h
+            zmap = zmap * self.scale_ratio
             x = np.linspace(-x_size/2, x_size/2, w, dtype='f4')
             y = np.linspace(y_size/2, -y_size/2, h, dtype='f4')
 
@@ -71,7 +72,7 @@ class GLSurfacePlotItem(GLGraphicsItem, LightMixin):
             self._vertexes = np.stack([xgrid, ygrid, zmap.astype('f4')], axis=-1).reshape(-1, 3)
             self.xy_size = (x_size, y_size)
         else:
-            self._vertexes[:, 2] = zmap.reshape(-1)
+            self._vertexes[:, 2] = zmap.reshape(-1) * self.scale_ratio
 
         # calc indices
         if self._indice_update_flag:

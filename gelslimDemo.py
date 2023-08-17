@@ -12,7 +12,7 @@ def sphere_depth(r_pix):
     y_span = np.array(x_span)
     X, Y = np.meshgrid(x_span, y_span)
 
-    depth = r_pix**2 - X**2 * 4 - Y**2 * 4 -  X * Y*4
+    depth = r_pix**2 / 32 - X**2 / 8 - Y**2 / 8 - X*Y / 8
     depth[depth<0] = 0
     depth = np.sqrt(depth)
     return depth.astype(np.float32)
@@ -26,10 +26,7 @@ class GLView(GLViewWidget):
         self.grid.rotate(90, 1, 0, 0)
         self.grid.translate(10, 0, -20)
 
-        self.zmap = sphere_depth(100)/5
-        cv2.GaussianBlur(self.zmap, (5,5), 0, dst=self.zmap)
-        self.zmap[[0,1,2,-3,-2,-1], :] = 0.0
-        self.zmap[:, [0,1,2,-3,-2,-1]] = 0.0
+        self.zmap = sphere_depth(100)[25:-25]
 
         self.flag = False
         self.light_move = False
@@ -52,13 +49,13 @@ class GLView(GLViewWidget):
 
     def onTimeout(self):
         if self.flag:
-            z = np.random.uniform(-0.3, 0.3, (205,205))
+            z = np.random.uniform(-2, 2, (155,205))
             cv2.GaussianBlur(z, (5,5), 0, dst=z)
             z[[0,1,2,-3,-2,-1], :] = 0.0
             z[:, [0,1,2,-3,-2,-1]] = 0.0
-            self.model.setDepth(zmap=self.zmap/10 + z)
+            self.model.setDepth(zmap=self.zmap + z)
         else:
-            self.model.setDepth(zmap=self.zmap/10)
+            self.model.setDepth(zmap=self.zmap)
 
         if self.light_move :
             self.light.rotate(0, 1, 0, 1)

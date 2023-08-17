@@ -64,6 +64,7 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         item.setView(self)
         if hasattr(item, 'lights'):
             self.lights |= set(item.lights)
+        self.items.sort(key=lambda a: a.depthValue())
         self.update()
 
     def removeItem(self, item):
@@ -108,9 +109,7 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         self.drawItems()
 
     def drawItems(self):
-        items = [x for x in self.items if x.parentItem() is None]
-        items.sort(key=lambda a: a.depthValue())
-        for it in items:
+        for it in self.items:
             try:
                 it.drawItemTree()
             except:

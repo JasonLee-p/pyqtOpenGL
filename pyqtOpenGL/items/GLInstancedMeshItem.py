@@ -14,7 +14,7 @@ class GLInstancedMeshItem(GLGraphicsItem, LightMixin):
 
     def __init__(
         self,
-        pos = [[0, 0, 0]],  # nx3
+        pos = None,  # nx3
         vertexes = None,
         indices = None,
         normals = None,
@@ -39,14 +39,15 @@ class GLInstancedMeshItem(GLGraphicsItem, LightMixin):
         self.addLight(lights)
 
     def setData(self, pos=None, color=None, size=None):
+        if color is not None:
+            self._color = np.array(color, dtype=np.float32)
+            self._gl_update_flag = True
         if pos is not None:
             self._pos = np.array(pos, dtype=np.float32).reshape(-1, 3)
             self._gl_update_flag = True
-        if color is not None:
-            self._color = np.array(color, dtype=np.float32)
-            if self._color.size == 3 and self._pos is not None:
+            if self._color is not None and self._color.size == 3:
                 self._color = np.tile(self._color, (self._pos.shape[0], 1))
-            self._gl_update_flag = True
+
         if size is not None:
             self._size = size
         self.update()
@@ -93,7 +94,6 @@ class GLInstancedMeshItem(GLGraphicsItem, LightMixin):
         self.setupLight()
 
         # gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
-
         self.vao.bind()
         with self.shader:
             if self._indices is not None:

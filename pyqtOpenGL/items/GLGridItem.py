@@ -86,9 +86,11 @@ class GLGridItem(GLGraphicsItem):
             gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, 0, 4)
 
             gl.glDisable(gl.GL_BLEND)
+            gl.glDisable(gl.GL_DEPTH_TEST)
             self.shader.set_uniform("objColor1", Vector3([0, 0, 0, 1]), "vec4")
             self.vbo1.setAttrPointer(0, attr_id=0)
             gl.glDrawArrays(gl.GL_LINES, 0, len(self.line_vertices))
+            gl.glEnable(gl.GL_DEPTH_TEST)
 
 
 vertex_shader = """

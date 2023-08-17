@@ -84,11 +84,12 @@ class GLArrowPlotItem(GLGraphicsItem):
             self._num = int(self._st_pos.size / 3)
             self._transform = direction_matrixs(self._st_pos.reshape(-1,3),
                                                 self._end_pos.reshape(-1,3))
-
         if color is not None:
             self._color = np.ascontiguousarray(color, dtype=np.float32)
-            if self._color.size == 3 and self._num > 1:
-                self._color = np.tile(self._color, (self._num, 1))
+
+        if self._color is not None and self._color.size == 3 and self._num > 1:
+            self._color = np.tile(self._color, (self._num, 1))
+
         self._gl_update_flag = True
         self.update()
 

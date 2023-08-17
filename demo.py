@@ -20,7 +20,7 @@ class GLView(GLViewWidget):
         self.ax = GLAxisItem(size=(8, 8, 8))
         self.box = GLBoxTextureItem(size=(2, 2, 2))
         self.box.translate(0, 1.1, 0)
-        self.grid = GLGridItem(size=(8, 8), lineWidth=1.5)
+        self.grid = GLGridItem(size=(8, 8), lineWidth=1)
         self.scatter = GLScatterPlotItem(
             pos=np.random.uniform(-5, 5, size=(15, 3)).astype('f4'),
             color=np.random.uniform(0, 1, size=(15, 3)).astype('f4'),
@@ -59,7 +59,7 @@ class GLView(GLViewWidget):
         )
         self.surf.rotate(-90, 1, 0, 0)
         self.surf.translate(-5, -2, 0)
-        self.text = GLTextItem(text="Hello World", pos=(7, 2, -1), color=(1, 0.6, 1), fixed=False)
+        self.text = GLTextItem(text="Hello World", pos=(2, 6, -1), color=(1, 0.6, 1), fixed=False)
 
         self.addItem(self.text)
         self.addItem(self.img)
