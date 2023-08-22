@@ -180,12 +180,16 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewPos)
     float diff = max(dot(normal, lightDir), 0.0);
     // 镜面光着色
     float spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
+    // 衰减
+    float distance    = length(light.position - fragPos);
+    float attenuation = 1.0 / (light.constant + light.linear * distance +
+                 light.quadratic * (distance * distance));
     // 合并结果
     vec3 ambient  = light.ambient  * oColor * 0.4;
     vec3 diffuse  = light.diffuse  * diff * oColor * 0.6;
     vec3 specular = light.specular * spec * oColor * 0.2;
 
-    return ambient + specular + diffuse;
+    return attenuation * (ambient + specular + diffuse);
 }
 
 void main() {

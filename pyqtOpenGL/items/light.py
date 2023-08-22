@@ -19,8 +19,8 @@ class PointLight():
         diffuse = Vector3(0.8, 0.8, 0.8),
         specular = Vector3(1.0, 1.0, 1.0),
         constant = 1.0,
-        linear = 0.09,
-        quadratic = 0.032,
+        linear = 0.01,
+        quadratic = 0.001,
         visible = True,
     ):
         self.position = pos
@@ -38,9 +38,9 @@ class PointLight():
         shader.set_uniform(name + ".ambient", self.amibent, "vec3")
         shader.set_uniform(name + ".diffuse", self.diffuse, "vec3")
         shader.set_uniform(name + ".specular", self.specular, "vec3")
-        shader.set_uniform(name + ".constant", self.constant, "float32")
-        shader.set_uniform(name + ".linear", self.linear, "float32")
-        shader.set_uniform(name + ".quadratic", self.quadratic, "float32")
+        shader.set_uniform(name + ".constant", self.constant, "float")
+        shader.set_uniform(name + ".linear", self.linear, "float")
+        shader.set_uniform(name + ".quadratic", self.quadratic, "float")
 
     def set_data(self, pos=None, ambient=None, diffuse=None, specular=None, visible=None):
         if pos is not None:
@@ -178,9 +178,9 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewPos)
     // 镜面光着色
     float spec = pow(max(dot(normal, halfwayDir), 0.0), material.shininess);
     // 衰减
-    //float distance    = length(light.position - fragPos);
-    //float attenuation = 1.0 / (light.constant + light.linear * distance +
-    //             light.quadratic * (distance * distance));
+    float distance    = length(light.position - fragPos);
+    float attenuation = 1.0 / (light.constant + light.linear * distance +
+                 light.quadratic * (distance * distance));
     // 合并结果
     vec3 ambient  = vec3(0);
     vec3 diffuse  = vec3(0);
@@ -195,10 +195,7 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewPos)
         specular = light.specular * spec * material.specular;
     }
 
-    //ambient  *= attenuation;
-    //diffuse  *= attenuation;
-    //specular *= attenuation;
-    return ambient + specular + diffuse;
+    return attenuation * (ambient + specular + diffuse);
 }
 
 void main() {
@@ -206,5 +203,7 @@ void main() {
     for(int i = 0; i < nr_point_lights; i++)
         result += CalcPointLight(pointLight[i], Normal, FragPos, ViewPos);
     FragColor = vec4(result, material.opacity);
+    //float gamma = 2.2;
+    //FragColor = vec4(pow(result, vec3(1.0 / gamma)), material.opacity);
 }
 """
