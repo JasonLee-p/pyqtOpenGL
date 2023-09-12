@@ -21,6 +21,7 @@ class GLInstancedMeshItem(GLGraphicsItem, LightMixin):
         lights = list(),
         color = [1., 1., 1.],
         size = 1.,
+        opacity = 1.,
         glOptions = 'opaque',
         calcNormals = True,
         parentItem = None
@@ -35,10 +36,10 @@ class GLInstancedMeshItem(GLGraphicsItem, LightMixin):
         if self._calcNormals and self._normals is None and self._indices is not None:
             self._normals = vertex_normal(self._vertices, self._indices)
 
-        self.setData(pos, color, size)
+        self.setData(pos, color, size, opacity)
         self.addLight(lights)
 
-    def setData(self, pos=None, color=None, size=None):
+    def setData(self, pos=None, color=None, size=None, opacity=None):
         if color is not None:
             self._color = np.array(color, dtype=np.float32)
             self._gl_update_flag = True
@@ -47,7 +48,8 @@ class GLInstancedMeshItem(GLGraphicsItem, LightMixin):
             self._gl_update_flag = True
             if self._color is not None and self._color.size == 3:
                 self._color = np.tile(self._color, (self._pos.shape[0], 1))
-
+        if opacity is not None:
+            self._opacity = opacity
         if size is not None:
             self._size = size
         self.update()
@@ -91,6 +93,7 @@ class GLInstancedMeshItem(GLGraphicsItem, LightMixin):
         self.shader.set_uniform("ViewPos",self.view_pos(), "vec3")
         self.shader.set_uniform("size", self._size, "float")
         self.shader.set_uniform("calcNormal", self._calcNormals, "bool")
+        self.shader.set_uniform("opacity", self._opacity, "float")
         self.setupLight()
 
         # gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
@@ -152,6 +155,7 @@ in vec3 oColor;
 in vec3 FragPos;
 in vec3 Normal;
 
+uniform float opacity;
 uniform vec3 ViewPos;
 
 struct PointLight {
@@ -196,6 +200,6 @@ void main() {
     vec3 result = vec3(0);
     for(int i = 0; i < nr_point_lights; i++)
         result += CalcPointLight(pointLight[i], Normal, FragPos, ViewPos);
-    FragColor = vec4(result, 1.0);
+    FragColor = vec4(result, opacity);
 }
 """
