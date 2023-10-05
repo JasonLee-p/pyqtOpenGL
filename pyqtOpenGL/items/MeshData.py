@@ -173,7 +173,7 @@ def cone(radius, height, slices=12):
         p = step * i * 3.14159 / 180  # 转为弧度
         vertices[i] = [radius * math.cos(p), radius * math.sin(p), 0]
     # 构造圆锥的面索引
-    indices = np.zeros((slices*6, ), dtype="uint32")
+    indices = np.zeros((slices*6, ), dtype=np.uint32)
     for i in range(0, slices):
         indices[i*6+0] = i
         indices[i*6+1] = (i+1) % slices
@@ -228,7 +228,7 @@ def sphere(radius=1.0, rows=12, cols=12, offset=True):
         verts = verts.reshape((rows+1)*cols, 3)[cols-1:-(cols-1)]  ## remove redundant vertexes from top and bottom
 
         ## compute faces
-        faces = np.empty((rows*cols*2, 3), dtype=np.uint)
+        faces = np.empty((rows*cols*2, 3), dtype=np.uint32)
         rowtemplate1 = ((np.arange(cols).reshape(cols, 1) + np.array([[0, 0, 1]])) % cols) + np.array([[0, cols, 0]])
         rowtemplate2 = ((np.arange(cols).reshape(cols, 1) + np.array([[0, 1, 1]])) % cols) + np.array([[cols, cols, 0]])
         for row in range(rows):
@@ -274,7 +274,7 @@ def cylinder(radius=[1.0, 1.0], length=1.0, rows=12, cols=12, offset=False):
     ## compute faces
     num_side_faces = rows * cols * 2
     num_cap_faces = cols
-    faces = np.empty((num_side_faces + num_cap_faces*2, 3), dtype=np.uint)
+    faces = np.empty((num_side_faces + num_cap_faces*2, 3), dtype=np.uint32)
     rowtemplate1 = ((np.arange(cols).reshape(cols, 1) + np.array([[0, 0, 1]])) % cols) + np.array([[0, cols, 0]])
     rowtemplate2 = ((np.arange(cols).reshape(cols, 1) + np.array([[0, 1, 1]])) % cols) + np.array([[cols, cols, 0]])
     for row in range(rows):

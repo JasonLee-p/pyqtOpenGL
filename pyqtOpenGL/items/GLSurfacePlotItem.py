@@ -90,7 +90,7 @@ class GLSurfacePlotItem(GLGraphicsItem, LightMixin):
         rows -= 1
         if cols == 0 or rows == 0:
             return
-        indices = np.empty((cols*rows*2, 3), dtype=np.uint)
+        indices = np.empty((cols*rows*2, 3), dtype=np.uint32)
         rowtemplate1 = np.arange(cols).reshape(cols, 1) + np.array([[0     , cols+1, 1]])
         rowtemplate2 = np.arange(cols).reshape(cols, 1) + np.array([[cols+1, cols+2, 1]])
         for row in range(rows):
