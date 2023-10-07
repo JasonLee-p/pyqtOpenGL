@@ -19,7 +19,8 @@ class GLArrowPlotItem(GLGraphicsItem):
         start_pos = None,
         end_pos = None,
         color = [1., 1., 1.],
-        tip_size = 1.,
+        tip_size = [0.1, 0.2],  # radius, height
+        tip_pos = 0,  # bias of tip position, end + tip_pos * (end - start)/norm(end - start)
         width = 1.,
         antialias=True,
         glOptions='opaque',
@@ -28,9 +29,9 @@ class GLArrowPlotItem(GLGraphicsItem):
         super().__init__(parentItem=parentItem)
         self.antialias = antialias
         self.setGLOptions(glOptions)
-        self._cone_vertices, self._cone_indices = cone(tip_size* 0.07*width,
-                                                       tip_size* 0.21*width)
-
+        self._cone_vertices, self._cone_indices = cone(tip_size[0]*width,
+                                                       tip_size[1]*width)
+        self._cone_vertices += np.array([0, 0, tip_pos], dtype=np.float32)
         self._width = width
         self._st_pos = None
         self._end_pos = None
@@ -84,6 +85,7 @@ class GLArrowPlotItem(GLGraphicsItem):
             self._num = int(self._st_pos.size / 3)
             self._transform = direction_matrixs(self._st_pos.reshape(-1,3),
                                                 self._end_pos.reshape(-1,3))
+
         if color is not None:
             self._color = np.ascontiguousarray(color, dtype=np.float32)
 
@@ -145,7 +147,7 @@ uniform mat4 view;
 
 layout (location = 0) in vec3 stPos;
 layout (location = 1) in vec3 endPos;
-layout (location = 2) in vec3 iColor;
+layout (location = 2) in vec3 aColor;
 
 out V_OUT {
     vec4 endPos;
@@ -156,7 +158,7 @@ void main() {
     mat4 matrix = view * model;
     gl_Position =  matrix * vec4(stPos, 1.0);
     v_out.endPos = matrix * vec4(endPos, 1.0);
-    v_out.color = iColor;
+    v_out.color = aColor;
 }
 """
 
@@ -167,18 +169,18 @@ uniform mat4 model;
 uniform mat4 view;
 
 layout (location = 7) in vec3 iPos;
-layout (location = 2) in vec3 iColor;
+layout (location = 2) in vec3 aColor;
 layout (location = 3) in vec4 row1;
 layout (location = 4) in vec4 row2;
 layout (location = 5) in vec4 row3;
 layout (location = 6) in vec4 row4;
-// layout (location = 2) in vec3 iColor;
+// layout (location = 2) in vec3 aColor;
 out vec3 oColor;
 
 void main() {
     mat4 transform = mat4(row1, row2, row3, row4);
     gl_Position =  view * model * transform * vec4(iPos, 1.0);
-    oColor = iColor;
+    oColor = aColor * vec3(0.9, 0.9, 0.9);
 }
 """
 

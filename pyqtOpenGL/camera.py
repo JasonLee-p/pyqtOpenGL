@@ -9,6 +9,7 @@ class Camera:
         position = Vector3(0., 0., 5),
         yaw = 0,
         pitch = 0,
+        roll = 0,
         fov = 45,
     ):
         """View Corrdinate System
@@ -16,9 +17,10 @@ class Camera:
         default up Vector: (0, 1, 0)
         yaw: rotate around VCS y axis
         pitch: rotate around VCS x axis
+        roll: rotate around VCS z axis
         """
         self.pos = Vector3(position)  # 世界坐标系原点指向相机位置的向量, 在相机坐标下的坐标
-        self.quat = Quaternion.fromEulerAngles(pitch, yaw, 0.)
+        self.quat = Quaternion.fromEulerAngles(pitch, yaw, roll)
         self.fov = fov
 
     def get_view_matrix(self):
@@ -56,10 +58,13 @@ class Camera:
         if self.pos.z < 0.1:
             self.pos.z = 0.1
 
-    def set_params(self, position=None, yaw=None, pitch=None, fov=None):
+    def set_params(self, position=None, yaw=None, pitch=None, roll=0, fov=None):
         if position is not None:
-            self.pos = position
+            self.pos = Vector3(position)
         if yaw is not None or pitch is not None:
-            self.quat = Quaternion.fromEulerAngles(pitch, yaw, 0.)
+            self.quat = Quaternion.fromEulerAngles(pitch, yaw, roll)
         if fov is not None:
             self.fov = fov
+
+    def get_params(self):
+        return self.pos, self.quat.toEulerAngles()

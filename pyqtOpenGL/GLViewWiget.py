@@ -5,6 +5,7 @@ from .functions import mkColor
 from PyQt5 import QtCore, QtWidgets
 from .transform3d import Matrix4x4, Quaternion, Vector3
 
+
 class GLViewWidget(QtWidgets.QOpenGLWidget):
 
     def __init__(
@@ -12,6 +13,7 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         cam_position = Vector3(0., 0., 10.),
         yaw = 0.,
         pitch = 0.,
+        roll = 0.,
         fov = 45.,
         bg_color = (0.2, 0.3, 0.3, 1.),
         parent=None,
@@ -23,7 +25,7 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         QtWidgets.QOpenGLWidget.__init__(self, parent)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.ClickFocus)
 
-        self.camera = Camera(cam_position, yaw, pitch, fov)
+        self.camera = Camera(cam_position, yaw, pitch, roll, fov)
         self.bg_color = bg_color
         self.items = []
         self.lights = set()
@@ -57,7 +59,7 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         return self.height() / self.width()
 
     def reset(self):
-        self.camera.set_params(Vector3(0., 0., 10.), 0, 0, 45)
+        self.camera.set_params(Vector3(0., 0., 10.), 0, 0, 0, 45)
 
     def addItem(self, item):
         self.items.append(item)

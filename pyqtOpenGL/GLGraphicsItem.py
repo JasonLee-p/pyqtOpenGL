@@ -268,12 +268,23 @@ class GLGraphicsItem(QtCore.QObject):
         """
         self.__transform.moveto(x, y, z)
 
+    def applyTransform(self, tr:Matrix4x4, local=False):
+        """
+        Apply the transform *tr* to this object's local transform.
+        """
+        if local:
+            self.__transform = self.__transform * tr
+        else:
+            self.__transform = tr * self.__transform
+        return self
+
     def translate(self, dx, dy, dz, local=False):
         """
         Translate the object by (*dx*, *dy*, *dz*) in its parent's coordinate system.
         If *local* is True, then translation takes place in local coordinates.
         """
         self.__transform.translate(dx, dy, dz, local=local)
+        return self
 
     def rotate(self, angle, x, y, z, local=False):
         """
@@ -282,6 +293,7 @@ class GLGraphicsItem(QtCore.QObject):
 
         """
         self.__transform.rotate(angle, x, y, z, local=local)
+        return self
 
     def scale(self, x, y, z, local=True):
         """
@@ -289,6 +301,7 @@ class GLGraphicsItem(QtCore.QObject):
         If *local* is False, then scale takes place in the parent's coordinates.
         """
         self.__transform.scale(x, y, z, local=local)
+        return self
 
     # The following methods must be implemented by subclasses:
     def initializeGL(self):

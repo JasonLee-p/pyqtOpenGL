@@ -1,6 +1,13 @@
 from PyQt5 import QtGui
 import numpy as np
 import sys
+from pathlib import Path
+from datetime import datetime
+
+__all__ = [
+    'clip_scalar', 'mkColor', 'glColor', 'intColor', 'clip_array',
+    'Filter', 'increment_path', 'now'
+]
 
 Colors = {
     'b': QtGui.QColor(0,0,255,255),
@@ -174,3 +181,40 @@ def clip_array(arr, vmin, vmax, out=None):
 
     else:
         return np.core.umath.clip(arr, vmin, vmax, out=out)
+
+
+class Filter:
+    """数据滤波"""
+    def __init__(self, data=None, alpha=0.2):
+        self._data = data
+        self._alpha = alpha
+
+    def update(self, new_data):
+        if self._data is None:
+            self._data = new_data
+        self._data = (1 - self._alpha) * self._data + self._alpha * new_data
+
+    @property
+    def data(self):
+        if self._data is None:
+            return 0
+        return self._data
+
+
+def increment_path(path):
+    """若输入文件路径已存在, 为了避免覆盖, 自动在后面累加数字返回一个可用的路径
+    例如输入 './img.jpg' 已存在, 则返回 './img_0000.jpg'
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    suffix = path.suffix
+    stem = path.stem
+    for n in range(0, 9999):
+        if not path.with_name(f"{stem}_{n:04d}{suffix}").exists():  #
+            break
+    return str(path.with_name(f"{stem}_{n:04d}{suffix}"))
+
+
+def now(fmt='%y_%m_%d_%H_%M_%S'):
+    return datetime.now().strftime(fmt)

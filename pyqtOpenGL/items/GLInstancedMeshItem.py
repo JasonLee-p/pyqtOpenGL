@@ -200,6 +200,9 @@ void main() {
     vec3 result = vec3(0);
     for(int i = 0; i < nr_point_lights; i++)
         result += CalcPointLight(pointLight[i], Normal, FragPos, ViewPos);
+    if(nr_point_lights == 0){
+        result = oColor;
+    }
     FragColor = vec4(result, opacity);
 }
 """

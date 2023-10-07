@@ -386,3 +386,45 @@ def vertex_normal(vert, ind):
     norm = norm / np.linalg.norm(norm, axis=1, keepdims=True) # 归一化每个顶点的法向量
     return norm
 
+
+def surface(zmap, xy_size):
+    x_size, y_size = xy_size
+    h, w = zmap.shape
+    scale = x_size / w
+    zmap *= scale
+
+    x = np.linspace(-x_size/2, x_size/2, w, dtype='f4')
+    y = np.linspace(y_size/2, -y_size/2, h, dtype='f4')
+
+    xgrid, ygrid = np.meshgrid(x, y, indexing='xy')
+    verts = np.stack([xgrid, ygrid, zmap.astype('f4')], axis=-1).reshape(-1, 3)
+
+    # calc indices
+    cols = w - 1
+    rows = h - 1
+    if cols == 0 or rows == 0:
+        raise Exception("cols or rows is zero")
+
+    faces = np.empty((cols*rows*2, 3), dtype=np.uint32)
+    rowtemplate1 = np.arange(cols).reshape(cols, 1) + np.array([[0     , cols+1, 1]])
+    rowtemplate2 = np.arange(cols).reshape(cols, 1) + np.array([[cols+1, cols+2, 1]])
+    for row in range(rows):
+        start = row * cols * 2
+        faces[start:start+cols] = rowtemplate1 + row * (cols+1)
+        faces[start+cols:start+(cols*2)] = rowtemplate2 + row * (cols+1)
+
+    return verts, faces
+
+
+def mesh_concat(verts: list, faces: list):
+    """合并多个网格"""
+
+    vert_nums = [len(v) for v in verts]
+    id_bias = np.cumsum(vert_nums)
+    for i in range(1, len(faces)):
+        faces[i] += id_bias[i-1]
+
+    verts = np.concatenate(verts, axis=0)
+    faces = np.concatenate(faces, axis=0).astype(np.uint32)
+
+    return verts, faces

@@ -38,6 +38,7 @@ class GLAxisItem(GLGraphicsItem):
         self,
         size=Vector3(1.,1.,1.),
         width=1.5,
+        tip_size=1,
         antialias=True,
         glOptions='opaque',
         parentItem=None
@@ -47,7 +48,7 @@ class GLAxisItem(GLGraphicsItem):
         self.__width = width
         self.antialias = antialias
         self.setGLOptions(glOptions)
-        self.cone_vertices, self.cone_indices = cone(0.12*width, 0.3*width)
+        self.cone_vertices, self.cone_indices = cone(0.12*width*tip_size, 0.3*width*tip_size)
 
     def setSize(self, x=None, y=None, z=None):
         """

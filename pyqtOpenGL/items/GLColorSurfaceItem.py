@@ -5,23 +5,21 @@ from ..GLGraphicsItem import GLGraphicsItem
 from ..transform3d import Matrix4x4, Vector3
 from .shader import Shader
 from .BufferObject import VAO, VBO, EBO, c_void_p
-from .MeshData import Material, surface
-from .texture import Texture2D
-from .light import LightMixin, light_fragment_shader
+from .MeshData import surface
 
 BASE_DIR = Path(__file__).resolve().parent
 
-__all__ = ['GLSurfacePlotItem']
+__all__ = ['GLColorSurfaceItem']
 
 
-class GLSurfacePlotItem(GLGraphicsItem, LightMixin):
+class GLColorSurfaceItem(GLGraphicsItem):
 
     def __init__(
         self,
         zmap = None,
         x_size = 10, # scale width to this size
-        material = dict(),
-        lights = list(),
+        color = (1, 1, 1),
+        opacity = 1.,
         glOptions = 'translucent',
         parentItem = None
     ):
@@ -34,21 +32,32 @@ class GLSurfacePlotItem(GLGraphicsItem, LightMixin):
         self._vert_update_flag = False
         self._indice_update_flag = False
         self._vertexes = None
-        self._normals = None
+        self._colors = None
         self._indices = None
+        self._opacity = opacity
         self.scale_ratio = 1
-        self.setData(zmap)
+        self.setData(zmap, color, opacity)
 
-        # material
-        self.setMaterial(material)
+    def setData(self, zmap=None, color=None, opacity=None):
 
-        # light
-        self.addLight(lights)
-
-    def setData(self, zmap=None):
         if zmap is not None:
             self.update_vertexs(np.array(zmap, dtype=np.float32))
+        if self._vertexes is None:
+            return
 
+        if color is not None:
+            color = np.array(color, dtype=np.float32)
+            if color.size == 3:
+                self._color = np.tile(color, (self._vertexes.shape[0], 1))
+            else:
+                self._color = color
+            self._vert_update_flag = True
+
+        assert self._vertexes.shape[0] == self._color.shape[0], \
+            "vertexes and colors must have same size"
+
+        if opacity is not None:
+            self._opacity = opacity
         self.update()
 
     def update_vertexs(self, zmap):
@@ -69,32 +78,23 @@ class GLSurfacePlotItem(GLGraphicsItem, LightMixin):
         else:
             self._vertexes[:, 2] = zmap.reshape(-1) * self.scale_ratio
 
-        # calc normals texture
-        v = self._vertexes[self._indices]  # Nf x 3 x 3
-        v = np.cross(v[:,1]-v[:,0], v[:,2]-v[:,0]) # face Normal Nf(c*r*2) x 3
-        v = v.reshape(h-1, 2, w-1, 3).sum(axis=1, keepdims=False)  # r x c x 3
-        self._normal_texture = v / np.linalg.norm(v, axis=-1, keepdims=True)
-
     def initializeGL(self):
-        self.shader = Shader(vertex_shader, light_fragment_shader)
+        self.shader = Shader(vertex_shader, fragment_shader)
         self.vao = VAO()
-        self.vbo = VBO([None], [3], usage = gl.GL_DYNAMIC_DRAW)
+        self.vbo = VBO([None, None], [3, 3], usage = gl.GL_DYNAMIC_DRAW)
         self.ebo = EBO(None)
-        self.texture = Texture2D(None, flip_x=False, flip_y=True)
 
     def updateGL(self):
         if not self._vert_update_flag:
             return
 
         self.vao.bind()
-        self.vbo.updateData([0], [self._vertexes])
+        self.vbo.updateData([0, 1], [self._vertexes, self._color])
+        self.vbo.setAttrPointer([0, 1], attr_id=[0, 1])
 
-        self.vbo.setAttrPointer([0], attr_id=[0])
         if self._indice_update_flag:
             self.ebo.updateData(self._indices)
-        if self.texture is not None:
-            self.texture.delete()
-        self.texture.updateTexture(self._normal_texture)
+
         self._vert_update_flag = False
         self._indice_update_flag = False
 
@@ -106,47 +106,39 @@ class GLSurfacePlotItem(GLGraphicsItem, LightMixin):
 
         self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
         self.shader.set_uniform("model", model_matrix.glData, "mat4")
-        self.shader.set_uniform("ViewPos",self.view_pos(), "vec3")
-
-        self._material.set_uniform(self.shader, "material")
-        self.setupLight()
-
-        self.texture.bind(0)
-        self.shader.set_uniform("norm_texture", self.texture.unit, "sampler2D")
-        self.shader.set_uniform("texScale", self.xy_size, "vec2")
+        self.shader.set_uniform("opacity", self._opacity, "float")
 
         with self.shader:
             self.vao.bind()
             gl.glDrawElements(gl.GL_TRIANGLES, self._indices.size, gl.GL_UNSIGNED_INT, c_void_p(0))
 
-    def setMaterial(self, material):
-        if isinstance(material, dict):
-            self._material = Material(material)
-        elif isinstance(material, Material):
-            self._material = material
-
-    def getMaterial(self):
-        return self._material
-
 
 vertex_shader = """
 #version 330 core
 layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aColor;
 
-out vec3 FragPos;
-out vec3 Normal;
+out vec3 oColor;
 
 uniform mat4 view;
 uniform mat4 model;
-uniform vec2 texScale;
-uniform sampler2D norm_texture;
 
 void main() {
-    vec2 TexCoords = (aPos.xy + texScale/2) / texScale;
-    vec3 aNormal = texture(norm_texture, TexCoords).rgb;
-    Normal = normalize(mat3(transpose(inverse(model))) * aNormal);
+    gl_Position = view * model * vec4(aPos, 1.0);
+    oColor = aColor;
+}
+"""
 
-    FragPos = vec3(model * vec4(aPos, 1.0));
-    gl_Position = view * vec4(FragPos, 1.0);
+
+fragment_shader = """
+#version 330 core
+
+uniform float opacity;
+
+in vec3 oColor;
+out vec4 fragColor;
+
+void main() {
+    fragColor = vec4(oColor, opacity);
 }
 """

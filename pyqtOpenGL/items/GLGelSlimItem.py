@@ -31,7 +31,7 @@ class GLGelSimItem(GLGraphicsItem):
         self.gelslim_base.setDepthValue(0)
 
         self.gelslim_gel = GLSurfacePlotItem(
-            zmap = np.zeros((10, 10), dtype=np.float32),
+            zmap = np.zeros((30, 40), dtype=np.float32),
             x_size = 13.5,
             lights = lights,
             glOptions = "translucent",
