@@ -4,6 +4,8 @@
 
 PyQtOpenGL is a powerful Python library that combines the capabilities of the modern OpenGL pipeline with the ease and flexibility of PyQt, a popular GUI toolkit. This repository provides a convenient toolkit for creating interactive 3D visualization windows and powerful drawing tools for your applications.
 
+![demo](doc/demo.gif)
+
 **Key Features:**
 
 - **Modern OpenGL Pipeline:** Leverage the full potential of the modern OpenGL pipeline to create visually appealing and efficient 3D graphics.
@@ -15,8 +17,9 @@ PyQtOpenGL is a powerful Python library that combines the capabilities of the mo
 **Getting Started:**
 
 1. Clone the repository: `git clone https://github.com/liuyvjin/PyQtOpenGL.git`
-2. Install the required dependencies: `pip install PyQt5 PyOpenGL`
-3. Start building captivating 3D visualization applications with ease!
+2. Install the required dependencies: `pip install PyQt5 PyOpenGL assimp_py`
+3. Run demo: `python demo.py`
+4. Start building captivating 3D visualization applications with ease!
 
 **Contributing:**
 
