@@ -1,4 +1,5 @@
 import numpy as np
+import cv2
 import OpenGL.GL as gl
 from pathlib import Path
 from ..GLGraphicsItem import GLGraphicsItem
@@ -73,6 +74,7 @@ class GLSurfacePlotItem(GLGraphicsItem, LightMixin):
         v = self._vertexes[self._indices]  # Nf x 3 x 3
         v = np.cross(v[:,1]-v[:,0], v[:,2]-v[:,0]) # face Normal Nf(c*r*2) x 3
         v = v.reshape(h-1, 2, w-1, 3).sum(axis=1, keepdims=False)  # r x c x 3
+        v = cv2.GaussianBlur(v, (5, 5), 0)  #
         self._normal_texture = v / np.linalg.norm(v, axis=-1, keepdims=True)
 
     def initializeGL(self):

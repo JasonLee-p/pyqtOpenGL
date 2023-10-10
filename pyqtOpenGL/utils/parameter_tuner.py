@@ -377,6 +377,10 @@ class ParameterTuner(QWidget):
             self.vc_widget.on_back_frame()
         elif a0.key() == Qt.Key.Key_Space:  # 步进
             self.vc_widget.pause_toggle()
+        elif a0.key() == Qt.Key.Key_J:
+            img, stamp = self.video.get_frame()
+            cv2.imwrite("./sample.jpg", img)
+            print("save sample.jpg")
 
     def closeEvent(self, a0):
         """输出最终参数"""

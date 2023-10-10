@@ -12,15 +12,15 @@ class GLView(GLViewWidget):
 
         ver1, ind1 = sphere(2, 20, 20)
         normal1 = vertex_normal(ver1, ind1)
-        ver2, ind2 = cylinder(radius=[1.2, 1], cols=20, rows=20, length=2.4)
+        ver2, ind2 = cylinder(radius=[1.2, 1], cols=12, rows=8, length=2.4)
         img = Image.open("./pyqtOpenGL/items/resources/textures/box.png")
         img = np.array(img, dtype='f4')
 
-        self.img = GLImageItem(img, width_height=(0.3, 0.3))
+        self.img = GLImageItem(img, width_height=(0.2, 0.2))
         self.ax = GLAxisItem(size=(8, 8, 8))
         self.box = GLBoxTextureItem(size=(2, 2, 2))
         self.box.translate(0, 1.1, 0)
-        self.grid = GLGridItem(size=(8, 8), lineWidth=1)
+        self.grid = GLGridItem(size=(7, 7), lineWidth=1)
         self.scatter = GLScatterPlotItem(
             pos=np.random.uniform(-5, 5, size=(15, 3)).astype('f4'),
             color=np.random.uniform(0, 1, size=(15, 3)).astype('f4'),
@@ -38,7 +38,7 @@ class GLView(GLViewWidget):
         )
         self.model.translate(0, 2, 0)
         self.mesh1 = GLInstancedMeshItem(
-            pos=[[5,-1,0],[3,10,-5]],
+            pos=[[5,-1,0], [-3,5,-5]],
             lights=[self.light, self.light1, self.light2],
             indices=ind1,
             vertexes=ver1,
@@ -50,7 +50,8 @@ class GLView(GLViewWidget):
             lights=[self.light, self.light1, self.light2],
             material=Material((0.4, 0.1, 0.1), diffuse=(0.6, 0.1, 0.3))
         )
-        self.mesh2.translate(-4, 3, 0)
+        self.mesh2.rotate(-50, 1, 0.4, 0)
+        self.mesh2.translate(-6, 2, -2)
 
         self.zmap = np.random.uniform(0, 3, (41,41))
         self.surf = GLSurfacePlotItem(
@@ -58,7 +59,7 @@ class GLView(GLViewWidget):
             material=Material((0.2, 0.2, 0.2), diffuse=(0.5, 0.5, 0.5))
         )
         self.surf.rotate(-90, 1, 0, 0)
-        self.surf.translate(-5, -2, 0)
+        self.surf.translate(-6, -1, 0)
         self.text = GLTextItem(text="Hello World", pos=(2, 6, -1), color=(1, 0.6, 1), fixed=False)
 
         self.addItem(self.text)

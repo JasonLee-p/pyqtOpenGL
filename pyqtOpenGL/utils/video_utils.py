@@ -10,7 +10,7 @@ class VideoReader:
         self.container = av.open(str(video_path))
         self.stream = self.container.streams.video[0]  # 容器中的第一个视频流
         self.width, self.height = self.stream.codec_context.width, self.stream.codec_context.height
-        self.generator = self.container.decode(self.stream)  # 创建生成器从 stream 中解码图像帧
+        self._generator = self.container.decode(self.stream)  # 创建生成器从 stream 中解码图像帧
         # 信息
         self.average_rate = float(self.stream.average_rate)  # 平均帧率
         self.time_base = float(self.stream.time_base)  # time = time_base * frame.pts
@@ -27,12 +27,12 @@ class VideoReader:
         返回(图片, 时间戳s)
         """
         try:
-            frame = next(self.generator)
+            frame = next(self._generator)
             image = frame.to_ndarray(format='bgr24')
             self.pts_cur = frame.pts
         except:  # 重置
             self.jump(self.pts_0)
-            frame = next(self.generator)
+            frame = next(self._generator)
             image = frame.to_ndarray(format='bgr24')
             self.pts_cur = frame.pts
         return image, frame.time  # 返回图片(bgr)和时间戳
@@ -40,19 +40,42 @@ class VideoReader:
     def get_frame(self):
         """读取一次视频"""
         try:
-            frame = next(self.generator)
+            frame = next(self._generator)
             image = frame.to_ndarray(format='bgr24')
             self.pts_cur = frame.pts
         except:
             return None, -1
         return image, frame.time
 
+    def get_generator(self, fps=0):
+        """返回生成器"""
+        frame_time = None
+        if fps > 0:
+            frame_time = 1.0 / min(fps, self.average_rate)
+
+        def _generator():
+            last_time = None
+            self.jump(self.pts_0)
+            gen = self.container.decode(self.stream)
+
+            for frame in gen:
+                if frame_time is None:
+                    yield frame.to_ndarray(format='bgr24'), frame.time
+                else:
+                    if last_time is None:
+                        last_time = frame.time
+                    elif frame.time - last_time >= frame_time:
+                        last_time = frame.time
+                        yield frame.to_ndarray(format='bgr24'), frame.time
+
+        return _generator()
+
     def jump(self, pts):
         """跳转到 pts"""
         pts_goal = max(self.pts_0, int(pts))
         self.container.seek(pts_goal, stream=self.stream, backward=True)  # 上一个关键帧
-        self.generator = self.container.decode(self.stream)
-        for frame in self.generator:
+        self._generator = self.container.decode(self.stream)
+        for frame in self._generator:
             if pts_goal - frame.pts <= 1 / self.index_base:
                 self.pts_cur = frame.pts
                 break
@@ -61,8 +84,8 @@ class VideoReader:
         """回退到上一个关键帧"""
         pts_goal = max(self.pts_0, int(self.pts_cur-10000))
         self.container.seek(pts_goal, stream=self.stream, backward=True)
-        self.generator = self.container.decode(self.stream)
-        iter1, self.generator = tee(self.generator)
+        self._generator = self.container.decode(self.stream)
+        iter1, self._generator = tee(self._generator)
         self.pts_cur = next(iter1).pts
 
     def back_frame(self):
@@ -70,7 +93,7 @@ class VideoReader:
         pts = self.pts_cur
         self.back_key()
         while self.pts_cur < pts - 3 / self.index_base:
-            frame = next(self.generator)
+            frame = next(self._generator)
             self.pts_cur = frame.pts
 
     def fast_back(self, n):

@@ -630,6 +630,7 @@ class VisualizeWidget(QtWidgets.QFrame):
     def __init__(self, parent):
         super().__init__(parent)
         self.init_ui()
+        self.setData = self.set_data
 
     def init_ui(self):
         self.vbox = QtWidgets.QVBoxLayout(self)
