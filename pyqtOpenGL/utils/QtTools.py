@@ -905,3 +905,26 @@ class QSynchronizer():
     def on_timeout(self):
         if self.condition() or time()-self.t_0 > self.timeout:
             self.loop.quit()
+
+
+if __name__ == '__main__':
+
+    params = {
+        "path": ["path", "a"],
+        "str": ["str", ""],
+        "int": ["int", -20, -30, 100, 1],
+        "float": ["float", 0.89, -1, 1, 0.01],
+        "Option": ["option", 0, ["a", "b", "c"]],
+        "Option1": ["option", 0, [""]],
+        "Bool": ["bool", 0],
+        "Click": ["button", ],
+        "Check": ["checkbutton", 1],
+        "Bool1": ["status", 1],
+        "Status1": ["status", 0],
+        "CheckList": ["checklist", 0, ["r", "g", "b"]],
+        "line1": ["line",]
+    }
+    app = QApplication(sys.argv)
+    mainwindow = QTablePanel(None, params, 'v')
+    mainwindow.show()
+    sys.exit(app.exec())

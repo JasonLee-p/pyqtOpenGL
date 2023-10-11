@@ -228,6 +228,7 @@ class ParameterTuner(QWidget):
         func: Callable,
         params: dict = {},
         video: InputSource = None,
+        preprocess: Callable = None,
     ):
         """
         :param func: 待调参的图片处理函数
@@ -238,6 +239,7 @@ class ParameterTuner(QWidget):
         super().__init__()
         self.func = func
         self.video = video
+        self.preprocess = preprocess
         self.panel_config.update(params)
         self.param_keys = params.keys()
 
@@ -303,6 +305,9 @@ class ParameterTuner(QWidget):
         # 原图或处理后的图片
         img, stamp = self.video.get_frame()
 
+        if self.preprocess is not None:
+            img = self.preprocess(img)
+
         if self.panel["Show Source Image"]:
             self.src_img_widget.setVisible(True)
             self.src_img_widget.setData(img)
@@ -355,10 +360,10 @@ class ParameterTuner(QWidget):
             self.video_writer = None
             self.record_flag = 0
 
-    def tune(func, params: dict, video: InputSource):
+    def tune(func, params: dict, video: InputSource, **kwargs):
         """对外接口"""
         app = QApplication(sys.argv)
-        mainwindow = ParameterTuner(func, params, video)
+        mainwindow = ParameterTuner(func, params, video, **kwargs)
         mainwindow.show()
         sys.exit(app.exec())
 
