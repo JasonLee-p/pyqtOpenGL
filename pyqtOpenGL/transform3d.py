@@ -34,6 +34,9 @@ class Quaternion(QQuaternion):
         np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
         return f"Quaternion(w: {self.scalar()}, x: {self.x()}, y: {self.y()}, z: {self.z()})"
 
+    def copy(self):
+        return Quaternion(self)
+
     def conjugate(self):
         """conjugate of quaternion"""
         return Quaternion(super().conjugated())
@@ -107,6 +110,9 @@ class Matrix4x4(QMatrix4x4):
     @dispatch()
     def __init__(self):
         super().__init__()
+
+    def copy(self):
+        return Matrix4x4(self)
 
     @property
     def matrix33(self):
@@ -220,6 +226,10 @@ class Matrix4x4(QMatrix4x4):
     def toEularAngles(self):
         return self.toQuaternion().toEulerAngles()
 
+    def toTranslation(self):
+        trans = self.column(3)
+        return Vector3(trans.x(), trans.y(), trans.z())
+
     def __mul__(self, other):
         if isinstance(other, Matrix4x4):
             return Matrix4x4(super().__mul__(other))
@@ -270,7 +280,14 @@ class Vector3():
     @__init__.register(list)
     @__init__.register(tuple)
     def _(self, data):
-        self._data = np.array(data, dtype='f4')
+        self._data = np.array(data, dtype='f4').flatten()[:3]
+
+    @__init__.register(QVector3D)
+    def _(self, data):
+        self._data = np.array([data.x(), data.y(), data.z()], dtype='f4')
+
+    def copy(self):
+        return Vector3(self._data)
 
     def __len__(self):
         return 3
@@ -337,6 +354,9 @@ class Vector3():
             raise TypeError(f"unsupported type {type(other)}")
         return self
 
+    def __neg__(self):
+        return Vector3(-self._data)
+
     @property
     def xyz(self):
         return self._data
@@ -372,6 +392,7 @@ class Vector3():
 
     def __setitem__(self, i, x):
         self._data[i] = x
+
 
 @Vector3.__init__.register
 def _(self, v: Vector3):

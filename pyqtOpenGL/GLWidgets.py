@@ -242,7 +242,12 @@ class QGelSlimWidget(GLViewWidget):
         self.gelslim_model.setDepth(zmap=-zmap)
 
         if start_pts is not None and end_pts is not None:
+            self.pointcloud.setVisible(True)
+            self.arrow.setVisible(True)
             start_pts[:, 2] = -start_pts[:, 2]
             end_pts[:, 2] = -end_pts[:, 2]
             self.pointcloud.setData(pos = end_pts*scale)
             self.arrow.setData(start_pos=start_pts*scale, end_pos=end_pts*scale)
+        else:
+            self.pointcloud.setVisible(False)
+            self.arrow.setVisible(False)

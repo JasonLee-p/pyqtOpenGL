@@ -1,5 +1,5 @@
 from OpenGL.GL import *  # noqa
-from math import radians, cos, sin, tan
+from math import radians, cos, sin, tan, sqrt
 from .camera import Camera
 from .functions import mkColor
 from PyQt5 import QtCore, QtWidgets
@@ -130,24 +130,37 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
 
     def mousePressEvent(self, ev):
         lpos = ev.position() if hasattr(ev, 'position') else ev.localPos()
-        self.mousePos = lpos
+        self.mousePressPos = lpos
+        self.cam_quat, self.cam_pos = self.camera.get_quat_pos()
 
     def mouseMoveEvent(self, ev):
+        ctrl_down = (ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier)
+        shift_down = (ev.modifiers() & QtCore.Qt.KeyboardModifier.ShiftModifier)
+        alt_down = (ev.modifiers() & QtCore.Qt.KeyboardModifier.AltModifier)
+
         lpos = ev.position() if hasattr(ev, 'position') else ev.localPos()
-        diff = lpos - self.mousePos
-        diff.setY(-diff.y())
-        self.mousePos = lpos
+        diff = lpos - self.mousePressPos
+
+        if ctrl_down:
+            diff *= 0.1
+
+        if alt_down:
+            roll = -diff.x() / 5
+
+        if shift_down:
+            if abs(diff.x()) > abs(diff.y()):
+                diff.setY(0)
+            else:
+                diff.setX(0)
+
 
         if ev.buttons() == QtCore.Qt.MouseButton.LeftButton:
-            if (ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier):
-                self.camera.pan(diff.x(), diff.y(), 0)
+            if alt_down:
+                self.camera.orbit(0, 0, roll, base=self.cam_quat)
             else:
-                self.camera.orbit(diff.x(), -diff.y())
+                self.camera.orbit(diff.x(), diff.y(), base=self.cam_quat)
         elif ev.buttons() == QtCore.Qt.MouseButton.MiddleButton:
-            if (ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier):
-                self.camera.pan(diff.x(), 0, diff.y())
-            else:
-                self.camera.pan(diff.x(), diff.y(), 0)
+            self.camera.pan(diff.x(), -diff.y(), 0, base=self.cam_pos)
         self.update()
 
     def wheelEvent(self, ev):

@@ -26,6 +26,19 @@ class Camera:
     def get_view_matrix(self):
         return Matrix4x4.fromTranslation(-self.pos.x, -self.pos.y, -self.pos.z) * self.quat
 
+    def set_view_matrix(self, view_matrix:Matrix4x4):
+        self.quat = view_matrix.toQuaternion()
+        self.pos = -view_matrix.toTranslation()
+
+    def get_quat_pos(self):
+        return self.quat.copy(), self.pos.copy()
+
+    def set_quat_pos(self, quat=None, pos=None):
+        if quat is not None:
+            self.quat = quat
+        if pos is not None:
+            self.pos = pos
+
     def get_projection_matrix(self, width, height, fov=None):
         distance = max(self.pos.z, 1)
         if fov is None:
@@ -45,16 +58,24 @@ class Camera:
         """计算相机在世界坐标系下的坐标"""
         return self.quat.inverse() * self.pos
 
-    def orbit(self, yaw, pitch):
+    def orbit(self, yaw, pitch, roll=0, base=None):
         """Orbits the camera around the center position.
         *yaw* and *pitch* are given in degrees."""
-        q =  Quaternion.fromEulerAngles(pitch, yaw, 0.)
-        self.quat = q * self.quat
+        q =  Quaternion.fromEulerAngles(pitch, yaw, roll)
 
-    def pan(self, dx, dy, dz=0.0, width=1000):
+        if base is None:
+            base = self.quat
+
+        self.quat = q * base
+
+    def pan(self, dx, dy, dz=0.0, width=1000, base=None):
         """Pans the camera by the given amount of *dx*, *dy* and *dz*."""
+        if base is None:
+            base = self.pos
+
         scale = self.pos.z * 2. * tan(0.5 * radians(self.fov)) / width
-        self.pos += Vector3([-dx*scale, -dy*scale, dz*scale])
+
+        self.pos = base + Vector3([-dx*scale, -dy*scale, dz*scale])
         if self.pos.z < 0.1:
             self.pos.z = 0.1
 
