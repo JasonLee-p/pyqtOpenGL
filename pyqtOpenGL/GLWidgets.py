@@ -47,10 +47,6 @@ class DefaultViewWidget(GLViewWidget):
         self.grid2.resetTransform()
         self.grid2.translate(0, 0, grid2_z)
 
-    def mousePressEvent(self, ev):
-        self.mousePos = ev.pos()
-
-
 def get_color(zmap, colormap='coolwarm'):
     colormap = eval("cm." + colormap)
     return colormap(zmap).reshape(-1, 4)[:, :3]
