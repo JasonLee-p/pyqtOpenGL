@@ -228,7 +228,7 @@ class QGelSlimWidget(GLViewWidget):
     def setData(self, zmap, start_pts, end_pts, **kwargs):
         if zmap.ndim == 3:
             return
-
+        zmap = zmap.astype(np.float32)
         h, w = zmap.shape[0:2]
         if h > 400:
             zmap = cv2.resize(zmap, (480, 360), interpolation=cv2.INTER_NEAREST)

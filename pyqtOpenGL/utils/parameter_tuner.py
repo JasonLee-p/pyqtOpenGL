@@ -251,7 +251,7 @@ class ParameterTuner(QWidget):
         self.setup_ui(self.panel_config)
 
         self.timer = QTimer(self)
-        self.timer.start(50)
+        self.timer.start(5)
         self.timer.timeout.connect(self.on_timeout)
 
         self.vc_widget.sigRecordVideo.connect(
