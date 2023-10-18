@@ -38,7 +38,7 @@ class GLView(GLViewWidget):
         )
         self.model.translate(0, 2, 0)
         self.mesh1 = GLInstancedMeshItem(
-            pos=[[5,-1,0], [-3,5,-5]],
+            pos=[[5,-1,0], [-3,5,-5], [4,6,-8]],
             lights=[self.light, self.light1, self.light2],
             indices=ind1,
             vertexes=ver1,
@@ -62,6 +62,18 @@ class GLView(GLViewWidget):
         self.surf.translate(-6, -1, 0)
         self.text = GLTextItem(text="Hello World", pos=(2, 6, -1), color=(1, 0.6, 1), fixed=False)
 
+        z = np.random.uniform(-3, -2, (5,6))
+        y = np.arange(5) + 2
+        x = np.arange(6) + 1
+        X, Y = np.meshgrid(x, y, indexing='xy')
+        grid = np.stack([X, Y, z], axis=2)
+        self.grid3d = GL3DGridItem(grid=grid, fill=True, opacity=0.2, color=(0.1,0.1, 0.95))
+        self.grid3d1 = GL3DGridItem(grid=grid, fill=False, color=(0,0,0))
+        self.grid3d1.setDepthValue(-1)
+        self.grid3d.setDepthValue(10)
+
+        self.addItem(self.grid3d)
+        self.addItem(self.grid3d1)
         self.addItem(self.text)
         self.addItem(self.img)
         self.addItem(self.ax)

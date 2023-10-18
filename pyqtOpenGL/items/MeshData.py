@@ -400,20 +400,32 @@ def surface(zmap, xy_size):
     verts = np.stack([xgrid, ygrid, zmap.astype('f4')], axis=-1).reshape(-1, 3)
 
     # calc indices
-    cols = w - 1
-    rows = h - 1
-    if cols == 0 or rows == 0:
+    ncol = w - 1
+    nrow = h - 1
+    if ncol == 0 or nrow == 0:
         raise Exception("cols or rows is zero")
 
-    faces = np.empty((cols*rows*2, 3), dtype=np.uint32)
-    rowtemplate1 = np.arange(cols).reshape(cols, 1) + np.array([[0     , cols+1, 1]])
-    rowtemplate2 = np.arange(cols).reshape(cols, 1) + np.array([[cols+1, cols+2, 1]])
-    for row in range(rows):
-        start = row * cols * 2
-        faces[start:start+cols] = rowtemplate1 + row * (cols+1)
-        faces[start+cols:start+(cols*2)] = rowtemplate2 + row * (cols+1)
+    faces = np.empty((nrow, 2, ncol, 3), dtype=np.uint32)
+    rowtemplate1 = np.arange(ncol).reshape(1, ncol, 1) + np.array([[[0     , ncol+1, 1]]])  # 1, ncols, 3
+    rowtemplate2 = np.arange(ncol).reshape(1, ncol, 1) + np.array([[[ncol+1, ncol+2, 1]]])
+    rowbase = np.arange(nrow).reshape(nrow, 1, 1) * (ncol+1)  # nrows, 1, 1
+    faces[:, 0] = (rowtemplate1 + rowbase)  # nrows, 1, ncols, 3
+    faces[:, 1] = (rowtemplate2 + rowbase)
 
-    return verts, faces
+    return verts, faces.reshape(-1, 3)
+
+
+def grid3d(grid):
+    # grid: (h, w, 3)
+    h, w = grid.shape[:2]
+    ncol, nrow = w-1, h-1
+
+    rowtemplate = np.arange(ncol, dtype=np.uint32).reshape(1, ncol, 1) + \
+        np.array([[[0, ncol+1, ncol+2, 1]]])  # 1, ncols, 4
+    rowbase = np.arange(nrow, dtype=np.uint32).reshape(nrow, 1, 1) * (ncol+1)  # nrows, 1, 1
+    faces = (rowtemplate + rowbase).reshape(-1, 4).astype(np.uint32)
+
+    return grid.reshape(-1, 3).astype(np.float32), faces
 
 
 def mesh_concat(verts: list, faces: list):
