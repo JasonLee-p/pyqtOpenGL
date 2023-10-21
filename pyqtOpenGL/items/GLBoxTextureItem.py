@@ -70,6 +70,11 @@ class GLBoxTextureItem(GLGraphicsItem):
         self.__size = Vector3(size)
         self.antialias = antialias
         self.setGLOptions(glOptions)
+        # texture
+        self.texture = Texture2D(
+            source=BASE_DIR/"resources/textures/box.png",
+            tex_type="tex_diffuse"
+        )
 
     def size(self):
         return self.__size.xyz
@@ -84,8 +89,6 @@ class GLBoxTextureItem(GLGraphicsItem):
             size = [[3, 3, 2]],
         )
         self.vbo1.setAttrPointer(0, attr_id=[[0, 1, 2]])
-        # texture
-        self.texture = Texture2D(source=BASE_DIR/"resources/textures/box.png", tex_type="tex_diffuse")
 
     def paint(self, model_matrix=Matrix4x4()):
         self.setupGLState()

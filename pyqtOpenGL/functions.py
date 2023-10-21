@@ -3,6 +3,7 @@ import numpy as np
 import sys
 from pathlib import Path
 from datetime import datetime
+from functools import update_wrapper, singledispatchmethod
 
 __all__ = [
     'clip_scalar', 'mkColor', 'glColor', 'intColor', 'clip_array',
@@ -218,3 +219,26 @@ def increment_path(path):
 
 def now(fmt='%y_%m_%d_%H_%M_%S'):
     return datetime.now().strftime(fmt)
+
+
+class dispatchmethod(singledispatchmethod):
+    """Dispatch a method to different implementations
+    depending upon the type of its first argument.
+    If there is no argument, use 'object' instead.
+    """
+    def __get__(self, obj, cls=None):
+        def _method(*args, **kwargs):
+            if len(args) > 0:
+                class__ = args[0].__class__
+            elif len(kwargs) > 0:
+                class__ = next(kwargs.values().__iter__()).__class__
+            else:
+                class__ = object
+
+            method = self.dispatcher.dispatch(class__)
+            return method.__get__(obj, cls)(*args, **kwargs)
+
+        _method.__isabstractmethod__ = self.__isabstractmethod__
+        _method.register = self.register
+        update_wrapper(_method, self.func)
+        return _method

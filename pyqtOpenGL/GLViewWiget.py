@@ -2,7 +2,7 @@ from OpenGL.GL import *  # noqa
 from math import radians, cos, sin, tan, sqrt
 from .camera import Camera
 from .functions import mkColor
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets, QtGui
 from .transform3d import Matrix4x4, Quaternion, Vector3
 
 
@@ -179,7 +179,11 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         """
         return self.grabFramebuffer()
 
-
+    def isCurrent(self):
+        """
+        Return True if this GLWidget's context is current.
+        """
+        return self.context() == QtGui.QOpenGLContext.currentContext()
 
 import warnings
 import traceback

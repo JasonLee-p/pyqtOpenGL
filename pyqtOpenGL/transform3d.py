@@ -1,9 +1,8 @@
 from math import acos, degrees
 import numpy as np
-from multipledispatch import dispatch
 import numpy as np
 from typing import Any, Union
-from functools import singledispatchmethod
+from .functions import dispatchmethod
 from PyQt5.QtGui import QQuaternion, QMatrix4x4, QVector3D, QMatrix3x3, QVector4D
 
 
@@ -13,22 +12,23 @@ class Quaternion(QQuaternion):
     """
 
     # constructors
-    @dispatch(np.ndarray)
-    def __init__(self, array):
+    @dispatchmethod
+    def __init__(self):
+        super().__init__()
+
+    @__init__.register(np.ndarray)
+    def _(self, array: np.ndarray):
         quat_values = array.astype('f4').flatten().tolist()
         super().__init__(*quat_values)
 
-    @dispatch(list)
-    def __init__(self, array):
+    @__init__.register(list)
+    def _(self, array):
         super().__init__(np.array(array))
 
-    @dispatch(QQuaternion)
-    def __init__(self, quat):
+    @__init__.register(QQuaternion)
+    def _(self, quat):
         super().__init__(quat.scalar(), quat.x(), quat.y(), quat.z())
 
-    @dispatch()
-    def __init__(self):
-        super().__init__()
 
     def __repr__(self) -> str:
         np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
@@ -94,22 +94,20 @@ class Matrix4x4(QMatrix4x4):
     """
 
     # constructors
-    @dispatch(np.ndarray)
-    def __init__(self, array):
-        matrix_values = array.astype('f4').flatten().tolist()
-        super().__init__(*matrix_values)
-
-    @dispatch(list)
-    def __init__(self, array):
-        super().__init__(np.array(array))
-
-    @dispatch(QMatrix4x4)
-    def __init__(self, matrix):
-        super().__init__(matrix.copyDataTo())
-
-    @dispatch()
+    @dispatchmethod
     def __init__(self):
         super().__init__()
+
+    @__init__.register(list)
+    @__init__.register(tuple)
+    @__init__.register(np.ndarray)
+    def _(self, array):
+        matrix_values = np.array(array).astype('f4').flatten().tolist()
+        super().__init__(*matrix_values)
+
+    @__init__.register(QMatrix4x4)
+    def _(self, matrix):
+        super().__init__(matrix.copyDataTo())
 
     def copy(self):
         return Matrix4x4(self)
@@ -132,7 +130,7 @@ class Matrix4x4(QMatrix4x4):
         np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
         return  f"Matrix4x4(\n{self.matrix44}\n)"
 
-    @singledispatchmethod
+    @dispatchmethod
     def rotate(self, q:Quaternion, local=True):
         """rotate by quaternion in local space, it will change the current matrix"""
         if local:
@@ -272,7 +270,7 @@ class Matrix4x4(QMatrix4x4):
 
 class Vector3():
 
-    @singledispatchmethod
+    @dispatchmethod
     def __init__(self, x: float = 0., y: float = 0., z: float = 0.):
         self._data = np.array([x, y, z], dtype='f4')
 
@@ -412,3 +410,4 @@ if __name__ == '__main__':
     ])
     # nt = Matrix4x4.fromAxisAndAngle(1, 0, 0, 30)
     q = Quaternion.fromAxisAndAngle(0,1,1,34)
+    q = Quaternion()

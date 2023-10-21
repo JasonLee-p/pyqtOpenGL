@@ -7,7 +7,7 @@ from .shader import Shader
 from .BufferObject import VAO, VBO, EBO
 from .texture import Texture2D
 from ..transform3d import Vector3
-from functools import singledispatchmethod
+from ..functions import dispatchmethod
 
 __all__ = [
     "Mesh", "Material", "direction_matrixs", "vertex_normal",
@@ -27,7 +27,7 @@ TextureType = {
 
 class Material():
 
-    @singledispatchmethod
+    @dispatchmethod
     def __init__(
         self,
         ambient = [0.4, 0.4, 0.4],
@@ -146,7 +146,7 @@ class Mesh():
         self._material.set_uniform(shader, "material")
 
         if self._indices is None:
-            shader.set_uniform("material.use_texture", False,'bool')
+            shader.set_uniform("material.use_texture", False, 'bool')
 
         self.vao.bind()
         if self._indices is not None:
