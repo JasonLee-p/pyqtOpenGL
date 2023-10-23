@@ -532,6 +532,11 @@ class QImageViewWidget(QtWidgets.QLabel):
         self.auto_scale = auto_scale
         self.mouse_pressed = False
 
+    def img_size(self):
+        if self.q_img is None:
+            return (640, 480)
+        return (self.q_img.width(), self.q_img.height())
+
     def setData(self, img):
         img = img.astype(np.uint8)
         if img.ndim==3 and img.shape[2]==3:  # 彩色图
@@ -631,6 +636,7 @@ class VisualizeWidget(QtWidgets.QFrame):
         super().__init__(parent)
         self.init_ui()
         self.setData = self.set_data
+        self._screen = QtWidgets.QApplication.screenAt(QtGui.QCursor.pos())
 
     def init_ui(self):
         self.vbox = QtWidgets.QVBoxLayout(self)
@@ -709,13 +715,30 @@ class VisualizeWidget(QtWidgets.QFrame):
     def type(self):
         return self.tab_widget.tabText(self.tab_widget.currentIndex())
 
+    @property
+    def qrect(self):
+        """获取当前显示窗口的位置"""
+        widget = self.tab_widget.currentWidget()
+
+        # 如果是图像, 则直接返回图像大小, 而不是实际窗口大小, 因为无需截图
+        if isinstance(widget, QImageViewWidget):
+            w, h = widget.img_size()
+            return QRect(0, 0, w, h)
+
+        pos = widget.mapToGlobal(widget.pos())
+        w, h = widget.width(), widget.height()
+        return QRect(pos.x(), pos.y(), w, h)
+
     def grab_frame(self):
         """捕获当前显示图像"""
         if self.tab_widget.currentIndex() == VisualizeType.Image:
             return self.tab_widget.currentWidget().get_img()
 
-        w, h = self.tab_widget.currentWidget().width(), self.tab_widget.currentWidget().height()
-        pixmap = self.tab_widget.currentWidget().grab(QRect(0, 0, w, h))
+        widget = self.tab_widget.currentWidget()
+        pos = widget.mapToGlobal(widget.pos())
+        w, h = widget.width(), widget.height()
+
+        pixmap = self._screen.grabWindow(0).copy(QRect(pos.x(), pos.y(), w, h))
         qimage = pixmap.toImage()
         bytes = qimage.bits().asstring(qimage.byteCount())
         img = np.frombuffer(bytes, np.uint8).reshape((h, w, 4))

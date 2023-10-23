@@ -140,6 +140,12 @@ def video2gif(
     optimize_gif(save_path, options=optimize_options)
 
 
+def avalible_codecs():
+    codecs = av.codec.codec.codecs_available
+    for codec in codecs:
+        print(codec)
+
+
 if __name__ == '__main__':
     video = 'J:\\test_imgs\\video.mp4'
     video2gif(video, fps=7, shape_scale=0.5)

@@ -340,10 +340,17 @@ class ParameterTuner(QWidget):
         elif self.record_flag == 1:
             print("[INFO] Start recording video")
             save_path = increment_path(Path.cwd() / "video.mp4")
+            if self.panel["Record Source Image"]:
+                w, h = img.shape[1], img.shape[0]
+            else:
+                qrect = self.vis_widget.qrect
+                w, h = qrect.width(), qrect.height()
+
             self.video_writer = VirableRateVideoWriter(
                 save_path,
-                (640,480),
-                auto_incr_stamp=True
+                (w - w % 2, h - h % 2),
+                bit_rate=2048000,
+                auto_incr_stamp=True,
             )
             self.record_flag = 2
 
@@ -391,6 +398,8 @@ class ParameterTuner(QWidget):
         """输出最终参数"""
         print("Final Parameters:")
         print(self._get_params())
+        if self.video_writer is not None:
+            self.video_writer.release()
         return super().closeEvent(a0)
 
     def _get_params(self):

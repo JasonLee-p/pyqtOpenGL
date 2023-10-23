@@ -125,16 +125,17 @@ class VirableRateVideoWriter():
     def __init__(
         self,
         video_path,
-        img_shape = (1280, 960),
+        img_shape = (1280, 960),  # w, h
         auto_incr_stamp = True,
+        bit_rate = 2048000,
     ):
         self.video_path = str(video_path)
         self.container = av.open(str(video_path), mode='w')
-        self.stream = self.container.add_stream('h264', 24)
-        # self.stream = self.container.add_stream('mpeg4', 24)
+        self.stream = self.container.add_stream('libx265', 24)
         self.stream.width = img_shape[0]
         self.stream.height = img_shape[1]
         self.stream.pix_fmt = 'yuv420p'
+        self.stream.bit_rate = int(bit_rate)
         self.time_base = Fraction(1, 1000)
         self.stream.codec_context.time_base = self.time_base
         self.init_stamp = None
