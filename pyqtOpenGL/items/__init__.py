@@ -12,7 +12,7 @@ from .GLSurfacePlotItem import GLSurfacePlotItem
 from .GLTextItem import GLTextItem
 from .GLColorSurfaceItem import GLColorSurfaceItem
 from .GL3DGridItem import GL3DGridItem
-
+from .GLLinePlotItem import GLLinePlotItem
 
 from .MeshData import *
 from .light import *

@@ -23,13 +23,15 @@ class GLView(GLViewWidget):
         self.box.translate(0, 1.1, 0)
         self.grid = GLGridItem(size=(7, 7), lineWidth=1)
         self.text = GLTextItem(text="Hello World", pos=(2, 6, -1), color=(1, 0.6, 1), fixed=False)
-        self.scatter = GLScatterPlotItem(
-            pos=np.random.uniform(-5, 5, size=(15, 3)).astype('f4'),
-            color=np.random.uniform(0, 1, size=(15, 3)).astype('f4'),
-            size=2
-        )
         self.arrow = GLArrowPlotItem(start_pos=ver1+[5,-1,0], end_pos=ver1+normal1+[5,-1,0], color=[1,1,0])
 
+        # -- scatter and line
+        pos = np.random.uniform(-2, 2, size=(15, 3)).astype('f4')*(2, 1, 2) + [0, -3, 0]
+        color = np.random.uniform(0, 1, size=(15, 3)).astype('f4')
+        self.scatter = GLScatterPlotItem(pos=pos, color=color, size=2)
+        self.line = GLLinePlotItem(pos=pos, color=color, lineWidth=2)
+
+        # -- lights
         self.light = PointLight(pos=[0, 5, 4], ambient=(0.8, 0.8, 0.8),diffuse=(0.8, 0.8, 0.8))
         self.light1 = PointLight(pos=[0, -5, 1], diffuse=(0, .8, 0))
         self.light2 = PointLight(pos=[-12, 3, 2], diffuse=(0.8, 0, 0))
@@ -88,6 +90,7 @@ class GLView(GLViewWidget):
         self.addItem(self.ax)
         self.addItem(self.grid)
         self.addItem(self.scatter)
+        self.addItem(self.line)
         self.addItem(self.box)
         self.addItem(self.arrow)
         self.addItem(self.model)
