@@ -11,7 +11,6 @@ from .GLScatterPlotItem import GLScatterPlotItem
 from .GLSurfacePlotItem import GLSurfacePlotItem
 from .GLTextItem import GLTextItem
 from .GLColorSurfaceItem import GLColorSurfaceItem
-from .GLTextureSurfaceItem import GLTextureSurfaceItem
 from .GL3DGridItem import GL3DGridItem
 
 

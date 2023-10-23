@@ -35,7 +35,8 @@ class Material():
         specular = [0.2, 0.2, 0.2],
         shininess = 10,
         opacity = 1,
-        textures: dict = dict(),
+        textures: list = list(),
+        textures_paths: dict = dict(),
         directory = None,
     ):
         self.ambient = Vector3(ambient)
@@ -43,9 +44,10 @@ class Material():
         self.specular = Vector3(specular)
         self.shininess = shininess
         self.opacity = opacity
-        self.textures_path = textures
-        self.directory = directory
         self.textures = list()
+        self.textures.extend(textures)
+        self.texture_paths = textures_paths
+        self.directory = directory
 
     @__init__.register(dict)
     def _(self, material_dict: dict, directory=None):
@@ -55,23 +57,23 @@ class Material():
             material_dict.get("COLOR_SPECULAR", [0.2, 0.2, 0.2]),  # Ks
             material_dict.get("SHININESS", 10),
             material_dict.get("OPACITY", 1),
-            material_dict.get("TEXTURES", None),
-            directory,
+            textures_paths = material_dict.get("TEXTURES", None),
+            directory = directory,
         )
 
     def load_textures(self):
         """在 initializeGL() 中调用 """
-        for type, paths in self.textures_path.items():
+        for type, paths in self.texture_paths.items():
             self.textures.append(
                 Texture2D(self.directory / paths[0], tex_type=TextureType[type])
             )
 
     def set_uniform(self, shader: Shader, name: str):
         use_texture = False
-        for i, tex in enumerate(self.textures):
+        for tex in self.textures:
             if tex.type == "tex_diffuse":
-                tex.bind(i)
-                shader.set_uniform(f"{name}.{tex.type}", i, "sampler2D")
+                tex.bind()
+                shader.set_uniform(f"{name}.tex_diffuse", tex, "sampler2D")
                 use_texture = True
         shader.set_uniform(name+".ambient", self.ambient, "vec3")
         shader.set_uniform(name+".diffuse", self.diffuse, "vec3")

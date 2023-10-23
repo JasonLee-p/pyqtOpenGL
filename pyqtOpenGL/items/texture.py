@@ -32,10 +32,12 @@ class Texture2D:
         'float32' : gl.GL_FLOAT,
     }
 
+    UnitCnt = 0
+
     def __init__(
         self,
         source = None,
-        tex_type: str = None,
+        tex_type: str = "tex_diffuse",
         mag_filter = gl.GL_LINEAR,
         min_filter = gl.GL_LINEAR_MIPMAP_LINEAR,
         wrap_s = gl.GL_REPEAT,
@@ -45,6 +47,13 @@ class Texture2D:
         generate_mipmaps=True,
     ):
         self._id = None
+        self.unit = None
+
+        # if the texture image is updated, the flag is set to True,
+        # meaning that the texture needs to be updated to the GPU.
+        self._img_update_flag = False
+        self._img = None  # the texture image
+
         self.flip_y = flip_y
         self.flip_x = flip_x
         self.mag_filter = mag_filter
@@ -56,47 +65,64 @@ class Texture2D:
         if source is not None:
             self.updateTexture(source)
 
-    def bind(self, unit):
-        gl.glActiveTexture(gl.GL_TEXTURE0 + unit)
-        gl.glBindTexture(gl.GL_TEXTURE_2D, self._id)
-        self.unit = unit
-
     def updateTexture(self, img: Union[str, np.ndarray]):
         if not isinstance(img, np.ndarray):
             self._path = str(img)
             img = np.array(Image.open(self._path))
-        img = flip_image(img, self.flip_x, self.flip_y)
+        self._img = flip_image(img, self.flip_x, self.flip_y)
+        self._img_update_flag = True
 
-        channels = 1 if img.ndim==2 else img.shape[2]
-        dtype = img.dtype.name
+    def bind(self):
+        """ Bind the texture to the specified texture unit,
+        if unit is None, the texture will be bound to the next available unit.
+        Must be called after the OpenGL context is made current."""
+        if self.unit is None:
+            self.unit = Texture2D.UnitCnt
+            Texture2D.UnitCnt += 1
 
-        # -- set alignment
-        nbytes_row = img.shape[1] * img.dtype.itemsize * channels
-        if nbytes_row % 4 != 0:
-            gl.glPixelStorei( gl.GL_UNPACK_ALIGNMENT, 1)
-        else:
-            gl.glPixelStorei( gl.GL_UNPACK_ALIGNMENT, 4)
+        if self._img is None:
+            raise ValueError('Texture not initialized.')
 
-        self.delete()
-        self._id = gl.glGenTextures(1)
-        gl.glBindTexture(gl.GL_TEXTURE_2D, self._id)
-        gl.glTexImage2D(
-            gl.GL_TEXTURE_2D, 0,
-            self.InternalFormat[(channels, dtype)],
-            img.shape[1], img.shape[0], 0,
-            self.Format[channels],
-            self.DataType[dtype],
-            img,
-        )
+        # do this job in bind() instead of updateTexture() to make sure that
+        # the context is current.
+        gl.glActiveTexture(gl.GL_TEXTURE0 + self.unit)
 
-        if self.generate_mipmaps:
-            gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
-        # -- texture wrapping
-        gl.glTexParameter(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, self.wrap_s)
-        gl.glTexParameter(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, self.wrap_t)
-        # -- texture filterting
-        gl.glTexParameter(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, self.min_filter)
-        gl.glTexParameter(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, self.mag_filter)
+        if self._img_update_flag:  # bind and update texture
+            channels = 1 if self._img.ndim==2 else self._img.shape[2]
+            dtype = self._img.dtype.name
+
+            # -- set alignment
+            nbytes_row = self._img.shape[1] * self._img.dtype.itemsize * channels
+            if nbytes_row % 4 != 0:
+                gl.glPixelStorei( gl.GL_UNPACK_ALIGNMENT, 1)
+            else:
+                gl.glPixelStorei( gl.GL_UNPACK_ALIGNMENT, 4)
+
+            self.delete()
+            self._id = gl.glGenTextures(1)
+            gl.glBindTexture(gl.GL_TEXTURE_2D, self._id)
+            gl.glTexImage2D(
+                gl.GL_TEXTURE_2D, 0,
+                self.InternalFormat[(channels, dtype)],
+                self._img.shape[1], self._img.shape[0], 0,
+                self.Format[channels],
+                self.DataType[dtype],
+                self._img,
+            )
+
+            if self.generate_mipmaps:
+                gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
+            # -- texture wrapping
+            gl.glTexParameter(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, self.wrap_s)
+            gl.glTexParameter(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, self.wrap_t)
+            # -- texture filterting
+            gl.glTexParameter(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, self.min_filter)
+            gl.glTexParameter(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, self.mag_filter)
+
+            self._img_update_flag = False
+
+        else:  # bind texture
+            gl.glBindTexture(gl.GL_TEXTURE_2D, self._id)
 
     def delete(self):
         if self._id is not None:

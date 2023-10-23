@@ -88,17 +88,18 @@ class GLInstancedMeshItem(GLGraphicsItem, LightMixin):
             return
         self.updateGL()
         self.setupGLState()
-        self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
-        self.shader.set_uniform("model", model_matrix.glData, "mat4")
-        self.shader.set_uniform("ViewPos",self.view_pos(), "vec3")
-        self.shader.set_uniform("size", self._size, "float")
-        self.shader.set_uniform("calcNormal", self._calcNormals, "bool")
-        self.shader.set_uniform("opacity", self._opacity, "float")
-        self.setupLight()
+        self.setupLight(self.shader)
 
         # gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
         self.vao.bind()
         with self.shader:
+            self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.shader.set_uniform("model", model_matrix.glData, "mat4")
+            self.shader.set_uniform("ViewPos",self.view_pos(), "vec3")
+            self.shader.set_uniform("size", self._size, "float")
+            self.shader.set_uniform("calcNormal", self._calcNormals, "bool")
+            self.shader.set_uniform("opacity", self._opacity, "float")
+
             if self._indices is not None:
                 self.ebo.bind()
                 gl.glDrawElementsInstanced(

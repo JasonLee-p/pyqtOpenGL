@@ -53,7 +53,7 @@ class GL3DGridItem(GLGraphicsItem):
                 self._color = color
             self._vert_update_flag = True
 
-        assert self._vertexes.shape[0] == self._color.shape[0], \
+        assert self._vertexes.size == self._color.size, \
             "vertexes and colors must have same size"
 
         if opacity is not None:

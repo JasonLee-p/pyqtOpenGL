@@ -22,7 +22,7 @@ class DefaultViewWidget(GLViewWidget):
         self.camera.set_params((0,0,1000), pitch=-75, yaw=0, roll=-90)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         # 坐标轴
-        self.axis = GLAxisItem(size=(255, 255, 255), tip_size=40)
+        self.axis = GLAxisItem(size=(100, 100, 100), tip_size=40)
         self.axis.translate(-240, -320, 0)
         self.addItem(self.axis)
         # 网格曲面

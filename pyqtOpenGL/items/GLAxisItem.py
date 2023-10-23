@@ -100,17 +100,19 @@ class GLAxisItem(GLGraphicsItem):
             gl.glEnable(gl.GL_LINE_SMOOTH)
             gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
         gl.glLineWidth(self.__width)
-        self.shader.set_uniform("sizev3", self.size(), "vec3")
-        self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
-        self.shader.set_uniform("model", model_matrix.glData, "mat4")
 
         with self.shader:
+            self.shader.set_uniform("sizev3", self.size(), "vec3")
+            self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.shader.set_uniform("model", model_matrix.glData, "mat4")
             self.vao_line.bind()
             gl.glDrawArrays(gl.GL_POINTS, 0, 3)
 
         gl.glEnable(gl.GL_CULL_FACE)
         gl.glCullFace(gl.GL_BACK)
         with self.shader_cone:
+            self.shader_cone.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.shader_cone.set_uniform("model", model_matrix.glData, "mat4")
             self.vao_cone.bind()
             gl.glDrawElementsInstanced(gl.GL_TRIANGLES, self.cone_indices.size, gl.GL_UNSIGNED_INT, None, 3)
         gl.glDisable(gl.GL_CULL_FACE)

@@ -83,10 +83,10 @@ class GLScatterPlotItem(GLGraphicsItem):
         gl.glEnable(gl.GL_POINT_SMOOTH)
         gl.glHint(gl.GL_POINT_SMOOTH_HINT, gl.GL_NICEST)
 
-        self.shader.set_uniform("size", self._size, "float")
-        self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
-        self.shader.set_uniform("model", model_matrix.glData, "mat4")
         with self.shader:
+            self.shader.set_uniform("size", self._size, "float")
+            self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.shader.set_uniform("model", model_matrix.glData, "mat4")
             self.vao.bind()
             gl.glDrawArrays(gl.GL_POINTS, 0, self._npoints)
 

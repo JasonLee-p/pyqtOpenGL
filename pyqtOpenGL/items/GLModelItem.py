@@ -43,13 +43,12 @@ class GLModelItem(GLGraphicsItem, LightMixin):
 
     def paint(self, model_matrix=Matrix4x4()):
         self.setupGLState()
-
-        self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
-        self.shader.set_uniform("model", model_matrix.glData, "mat4")
-        self.shader.set_uniform("ViewPos",self.view_pos(), "vec3")
-        self.setupLight()
+        self.setupLight(self.shader)
 
         with self.shader:
+            self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.shader.set_uniform("model", model_matrix.glData, "mat4")
+            self.shader.set_uniform("ViewPos",self.view_pos(), "vec3")
             for i in self._order:
                 self.meshes[i].paint(self.shader)
 

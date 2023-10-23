@@ -97,8 +97,8 @@ class GLImageItem(GLGraphicsItem):
         self.shader.set_uniform("proj", self.proj_matrix().glData, "mat4")
         self.shader.set_uniform("view", self.view_matrix().glData, "mat4")
         self.shader.set_uniform("model", model_matrix.glData, "mat4")
-        self.texture.bind(0)
-        self.shader.set_uniform("texture1", 0, "sample2D")
+        self.texture.bind()
+        self.shader.set_uniform("texture1", self.texture, "sample2D")
 
         with self.shader:
             self.vao.bind()

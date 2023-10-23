@@ -67,43 +67,51 @@ class PointLight():
 
 class LightMixin():
 
+    LightInited = False
+
+    @property
+    def light_count(self):
+        return len(self.lights)
+
     def addLight(self, light: PointLight):
         self.lights = list()
-        self._light_inited = False
         if isinstance(light, PointLight):
             self.lights.append(light)
         elif isinstance(light, list):
             self.lights.extend(light)
 
     def initializeLight(self):
-        if not self._light_inited:
-            self._light_vert, self._light_idx = sphere(0.3, 12, 12, offset=True)
-            self._light_vao = VAO()
-            self._light_vbo = VBO([self._light_vert], [3])
-            self._light_vbo.setAttrPointer([0], [0])
-            self._light_ebo = EBO(self._light_idx)
-            self._shader = Shader(vertex_shader, fragment_shader)
-            self._light_inited = True
+        self._light_vert, self._light_idx = sphere(0.3, 12, 12, offset=True)
+        self._light_vao = VAO()
+        self._light_vbo = VBO([self._light_vert], [3])
+        self._light_vbo.setAttrPointer([0], [0])
+        self._light_ebo = EBO(self._light_idx)
+        self._light_shader = Shader(vertex_shader, fragment_shader)
+        LightMixin.LightInited = True
 
     def paintLight(self, light):
-        if light.visible:
-            self._shader.set_uniform("_lightPos", light.position, "vec3")
-            self._shader.set_uniform("_lightColor", light.diffuse, "vec3")
-            with self._shader:
-                self._light_vao.bind()
-                gl.glDrawElements(gl.GL_TRIANGLES, self._light_idx.size, gl.GL_UNSIGNED_INT, c_void_p(0))
+        with self._light_shader:
+            self._light_shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self._light_shader.set_uniform("_lightPos", light.position, "vec3")
+            self._light_shader.set_uniform("_lightColor", light.diffuse, "vec3")
+            self._light_vao.bind()
+            gl.glDrawElements(gl.GL_TRIANGLES, self._light_idx.size, gl.GL_UNSIGNED_INT, c_void_p(0))
 
-    def setupLight(self):
+    def setupLight(self, shader: Shader):
         """设置光源 uniform 属性, 绘制光源, 在设置完 view, projection 后调用
         每次 update 只调用一次
         """
-        self.initializeLight()
+        if not LightMixin.LightInited:
+            self.initializeLight()
+
         for i, light in enumerate(self.lights):
-            if light._update_flag:
-                light.set_uniform(self._shader, "pointLight[" + str(i) + "]")
+            # 每一帧只绘制一次光源
+            if light._update_flag and light.visible:
                 self.paintLight(light)
                 light._update_flag = False
-        self.shader.set_uniform("nr_point_lights", len(self.lights), "int")
+
+            light.set_uniform(shader, "pointLight[" + str(i) + "]")
+        shader.set_uniform("nr_point_lights", len(self.lights), "int")
 
 
 

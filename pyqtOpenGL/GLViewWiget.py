@@ -1,8 +1,8 @@
 from OpenGL.GL import *  # noqa
 from math import radians, cos, sin, tan, sqrt
+from PyQt5 import QtCore, QtWidgets, QtGui
 from .camera import Camera
 from .functions import mkColor
-from PyQt5 import QtCore, QtWidgets, QtGui
 from .transform3d import Matrix4x4, Quaternion, Vector3
 
 
@@ -184,6 +184,18 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         Return True if this GLWidget's context is current.
         """
         return self.context() == QtGui.QOpenGLContext.currentContext()
+
+    def keyPressEvent(self, a0) -> None:
+        """按键处理"""
+        if a0.text() == '1':
+            pos, euler = self.camera.get_params()
+            print(f"pos: ({pos.x:.2f}, {pos.y:.2f}, {pos.z:.2f})  "
+                  f"euler: ({euler[0]:.2f}, {euler[1]:.2f}, {euler[2]:.2f})")
+        elif a0.text() == '2':
+            self.camera.set_params((0.00, 0.00, 886.87),
+                                   pitch=-31.90, yaw=-0, roll=-90)
+            # self.camera.set_params((1.72, -2.23, 27.53),pitch=-27.17, yaw=2.64, roll=-70.07)
+
 
 import warnings
 import traceback

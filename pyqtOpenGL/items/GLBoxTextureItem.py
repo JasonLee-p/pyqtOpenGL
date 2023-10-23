@@ -104,8 +104,8 @@ class GLBoxTextureItem(GLGraphicsItem):
         self.shader.set_uniform("lightPos", Vector3([3, 2.0, 2.0]), "vec3")
         self.shader.set_uniform("lightColor", Vector3([1.0, 1.0, 1.0]), "vec3")
         # self.shader.set_uniform("objColor", Vector3([1.0, 0.5, 0.31]), "vec3")
-        self.texture.bind(0)
-        self.shader.set_uniform("texture1", self.texture.unit, "sampler2D")
+        self.texture.bind()
+        self.shader.set_uniform("texture1", self.texture, "sampler2D")
 
         with self.shader:
             self.vao.bind()

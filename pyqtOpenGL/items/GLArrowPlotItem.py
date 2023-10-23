@@ -120,15 +120,17 @@ class GLArrowPlotItem(GLGraphicsItem):
             gl.glEnable(gl.GL_LINE_SMOOTH)
             gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
         gl.glLineWidth(self._width)
-        self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
-        self.shader.set_uniform("model", model_matrix.glData, "mat4")
 
         self.vao.bind()
         with self.shader:
+            self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.shader.set_uniform("model", model_matrix.glData, "mat4")
             self.vbo_shaft.setAttrPointer(2, divisor=0, attr_id=2)
             gl.glDrawArrays(gl.GL_POINTS, 0, self._num)
 
         with self.shader_cone:
+            self.shader_cone.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.shader_cone.set_uniform("model", model_matrix.glData, "mat4")
             self.vbo_shaft.setAttrPointer(2, divisor=1, attr_id=2)
             self.ebo_cone.bind()
             gl.glDrawElementsInstanced(

@@ -38,6 +38,8 @@ class GLSurfacePlotItem(GLGraphicsItem, LightMixin):
         self._normals = None
         self._indices = None
         self.scale_ratio = 1
+        self.normal_texture = Texture2D(None, flip_x=False, flip_y=True)
+
         self.setData(zmap)
 
         # material
@@ -76,13 +78,14 @@ class GLSurfacePlotItem(GLGraphicsItem, LightMixin):
         v = v.reshape(h-1, 2, w-1, 3).sum(axis=1, keepdims=False)  # r x c x 3
         v = cv2.GaussianBlur(v, (5, 5), 0)  #
         self._normal_texture = v / np.linalg.norm(v, axis=-1, keepdims=True)
+        self.normal_texture.updateTexture(self._normal_texture)
 
     def initializeGL(self):
         self.shader = Shader(vertex_shader, light_fragment_shader)
         self.vao = VAO()
         self.vbo = VBO([None], [3], usage = gl.GL_DYNAMIC_DRAW)
+        self.vbo.setAttrPointer([0], attr_id=[0])
         self.ebo = EBO(None)
-        self.texture = Texture2D(None, flip_x=False, flip_y=True)
 
     def updateGL(self):
         if not self._vert_update_flag:
@@ -91,12 +94,9 @@ class GLSurfacePlotItem(GLGraphicsItem, LightMixin):
         self.vao.bind()
         self.vbo.updateData([0], [self._vertexes])
 
-        self.vbo.setAttrPointer([0], attr_id=[0])
         if self._indice_update_flag:
             self.ebo.updateData(self._indices)
-        if self.texture is not None:
-            self.texture.delete()
-        self.texture.updateTexture(self._normal_texture)
+
         self._vert_update_flag = False
         self._indice_update_flag = False
 
@@ -106,19 +106,21 @@ class GLSurfacePlotItem(GLGraphicsItem, LightMixin):
         self.updateGL()
         self.setupGLState()
 
-        self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
-        self.shader.set_uniform("model", model_matrix.glData, "mat4")
-        self.shader.set_uniform("ViewPos",self.view_pos(), "vec3")
-
-        self._material.set_uniform(self.shader, "material")
-        self.setupLight()
-
-        self.texture.bind(0)
-        self.shader.set_uniform("norm_texture", self.texture.unit, "sampler2D")
-        self.shader.set_uniform("texScale", self.xy_size, "vec2")
-
+        self.setupLight(self.shader)
         with self.shader:
             self.vao.bind()
+            self.normal_texture.bind()
+
+            self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.shader.set_uniform("model", model_matrix.glData, "mat4")
+            self.shader.set_uniform("ViewPos",self.view_pos(), "vec3")
+
+            self._material.set_uniform(self.shader, "material")
+            self.shader.set_uniform("norm_texture", self.normal_texture, "sampler2D")
+
+            self.shader.set_uniform("texScale", self.xy_size, "vec2")
+            # print("  ", gl.glGetActiveUniform(self.shader.ID, 1, 256))
+
             gl.glDrawElements(gl.GL_TRIANGLES, self._indices.size, gl.GL_UNSIGNED_INT, c_void_p(0))
 
     def setMaterial(self, material):
@@ -137,6 +139,7 @@ layout (location = 0) in vec3 aPos;
 
 out vec3 FragPos;
 out vec3 Normal;
+out vec2 TexCoords;
 
 uniform mat4 view;
 uniform mat4 model;
@@ -144,7 +147,7 @@ uniform vec2 texScale;
 uniform sampler2D norm_texture;
 
 void main() {
-    vec2 TexCoords = (aPos.xy + texScale/2) / texScale;
+    TexCoords = (aPos.xy + texScale/2) / texScale;
     vec3 aNormal = texture(norm_texture, TexCoords).rgb;
     Normal = normalize(mat3(transpose(inverse(model))) * aNormal);
 

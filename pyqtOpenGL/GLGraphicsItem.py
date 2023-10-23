@@ -236,6 +236,7 @@ class GLGraphicsItem(QtCore.QObject):
 
         self.initialize()
         self.paint(model_matrix)
+
         for child in self.__children:
             child.drawItemTree(model_matrix)
 

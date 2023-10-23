@@ -18,7 +18,7 @@ class MemoryBlock:
         dsize,
     ):
         self.block_lens = [0 if x is None else x.nbytes for x in blocks]
-        self.block_used = np.array(self.block_lens, dtype=int)
+        self.block_used = np.array(self.block_lens, dtype=np.uint32)
         self.block_offsets = [0] + np.cumsum(self.block_lens).tolist()[:-1]
         self.sum_lens = sum(self.block_lens)
         self.dtype = [np.dtype('f4') if x is None else x.dtype for x in blocks]
@@ -36,11 +36,23 @@ class MemoryBlock:
                 id += 1
 
     def setBlock(self, ids: List[int], blocks: List[int]):
+        """Set block size, return copy_blocks and keep_blocks
+
+        :param ids: id of blocks
+        :param blocks: new length of blocks
+        :return:
+            copy_blocks: the location in memory to which the updated data should be copied,
+                list of [write offset, size]
+            keep_blocks:the location in memory to which the unupdated data should be copied,
+                list of [read offset, size, write offset]
+            extend: if the buffer is extended
+        """
         extend = False
-        keep_blocks = []
-        copy_blocks = []
+        keep_blocks = []  # read offset, size, write offset
+        copy_blocks = []  # write offset, size
         ptr = 0
 
+        # update block_lens and block_used, and calc keep_blocks
         for id, len in zip(ids, blocks):
             t = self.block_offsets[id] - ptr
             if t > 0:
@@ -55,7 +67,7 @@ class MemoryBlock:
             keep_blocks.append([ptr, self.sum_lens-ptr, -1])
 
         if extend:
-            self.block_offsets = [0] + np.cumsum(self.block_lens).tolist()[:-1]
+            self.block_offsets = [0] + np.cumsum(self.block_lens).tolist()[:-1]  # update block_offsets
             self.sum_lens = sum(self.block_lens)
             for kb in keep_blocks:  # calc write offset
                 id = kb[2]
@@ -63,7 +75,7 @@ class MemoryBlock:
                 kb[2] = end - kb[1]
 
         for id, len in zip(ids, blocks):
-            copy_blocks.append([self.block_offsets[id], len])  # read offset, size
+            copy_blocks.append([self.block_offsets[id], len])  # write offset, size
 
         return copy_blocks, keep_blocks, extend
 
@@ -113,46 +125,42 @@ class VBO():
         if self.blocks.nbytes > 0:
             self.bind()
             gl.glBufferData(gl.GL_ARRAY_BUFFER, self.blocks.nbytes, None, self._usage)
-            self.buffer_need_init = True
         self.updateData(range(len(data)), data)
 
     def _loadSubDatas(self, block_id: List[int], data: List[np.ndarray]):
         """load data to buffer"""
         self.bind()
 
-        if self.buffer_need_init:
-            self.buffer_need_init = False
-            for id, da in zip(block_id, data):
-                offset, size = self.blocks.locBlock(id)
-                gl.glBufferSubData(gl.GL_ARRAY_BUFFER, offset, size, da)
-        else:
-            # buf = gl.glMapBuffer(gl.GL_ARRAY_BUFFER, gl.GL_WRITE_ONLY)
-            for id, da in zip(block_id, data):
-                offset = self.blocks.block_offsets[id]
-                length = self.blocks.block_used[id]
-                gl.glBufferSubData(gl.GL_ARRAY_BUFFER, offset, length, da)
-            #     ctypes.memmove(buf+offset, da.ctypes.data, length)
-            # gl.glUnmapBuffer(gl.GL_ARRAY_BUFFER)
-            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+        for id, da in zip(block_id, data):
+            offset = int(self.blocks.block_offsets[id])
+            length = int(self.blocks.block_used[id])
+            gl.glBufferSubData(gl.GL_ARRAY_BUFFER, offset, length, da)
+
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
 
     def updateData(self, block_id: List[int], data: List[np.ndarray]):
         """update data to buffer, first check if need to extend buffer"""
         self.bind()
         old_nbytes = self.blocks.nbytes
-        copy_blocks, keep_blocks, extend = self.blocks.setBlock(block_id,
-                                                                [0 if x is None else x.nbytes for x in data])
+        copy_blocks, keep_blocks, extend = self.blocks.setBlock(
+            block_id,
+            [0 if x is None else x.nbytes for x in data]
+        )
         if self.blocks.nbytes == 0:
             return
 
         if extend:
             """extend a sub buffer to new_size"""
+            # copy old data to a temporary buffer with old_size
             new_vbo = gl.glGenBuffers(1)
             gl.glBindBuffer(gl.GL_COPY_WRITE_BUFFER, new_vbo)
             gl.glBufferData(gl.GL_COPY_WRITE_BUFFER, old_nbytes, None, self._usage)
             gl.glCopyBufferSubData(gl.GL_ARRAY_BUFFER, gl.GL_COPY_WRITE_BUFFER, 0, 0, old_nbytes)
 
+            # extend array buffer to new_size
             gl.glBufferData(gl.GL_ARRAY_BUFFER, self.blocks.nbytes, None, self._usage)
-            self.buffer_need_init = True
+
+            # copy old data back to array buffer
             for keep in keep_blocks:
                 gl.glCopyBufferSubData(
                     gl.GL_COPY_WRITE_BUFFER,

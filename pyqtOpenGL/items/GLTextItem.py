@@ -130,8 +130,8 @@ class GLTextItem(GLGraphicsItem):
         self.shader.set_uniform("model", model_matrix.glData, "mat4")
         self.shader.set_uniform("fixed", self._fixed, "bool")
         self.shader.set_uniform("text_pos", pos, "vec3")
-        self.tex.bind(0)
-        self.shader.set_uniform("texture1", 0, "sample2D")
+        self.tex.bind()
+        self.shader.set_uniform("texture1", self.tex, "sample2D")
 
         with self.shader:
             self.vao.bind()
