@@ -22,6 +22,11 @@ class VideoReader:
         if(self.pts_0):
             self.jump(self.pts_0)
 
+    @property
+    def stamp(self):
+        """当前时间戳"""
+        return self.pts_cur * self.time_base
+
     def get_loop_frame(self):
         """循环读取图片帧
         返回(图片, 时间戳s)
@@ -128,13 +133,15 @@ class VirableRateVideoWriter():
         img_shape = (1280, 960),  # w, h
         auto_incr_stamp = True,
         bit_rate = 2048000,
+        pix_fmt = 'yuv420p', # 'gray', 'yuv420p'
     ):
         self.video_path = str(video_path)
         self.container = av.open(str(video_path), mode='w')
-        self.stream = self.container.add_stream('libx265', 24)
+        self.stream = self.container.add_stream('libx264', 24)
+        self.stream.options['q:v'] = '0'
         self.stream.width = img_shape[0]
         self.stream.height = img_shape[1]
-        self.stream.pix_fmt = 'yuv420p'
+        self.stream.pix_fmt = pix_fmt
         self.stream.bit_rate = int(bit_rate)
         self.time_base = Fraction(1, 1000)
         self.stream.codec_context.time_base = self.time_base
@@ -156,7 +163,10 @@ class VirableRateVideoWriter():
                 self.init_stamp = stamp - 1/self.stream.average_rate - duration
 
         self.last_stamp = stamp
-        frame = av.VideoFrame.from_ndarray(img, format='bgr24')
+        if self.stream.pix_fmt == 'gray':
+            frame = av.VideoFrame.from_ndarray(img, format='gray')
+        else:
+            frame = av.VideoFrame.from_ndarray(img, format='bgr24')
         frame.pts = int((stamp - self.init_stamp) / self.time_base)
 
         for packet in self.stream.encode(frame):

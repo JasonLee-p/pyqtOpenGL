@@ -4,6 +4,8 @@ from .shader import Shader
 from .BufferObject import VAO, VBO
 import numpy as np
 import OpenGL.GL as gl
+from .light import LightMixin, PointLight
+from typing import List
 
 __all__ = ['GLGridItem']
 
@@ -27,7 +29,7 @@ def make_grid_data(size, spacing):
     return data
 
 
-class GLGridItem(GLGraphicsItem):
+class GLGridItem(GLGraphicsItem, LightMixin):
     """
     Displays xy plane.
     """
@@ -35,9 +37,10 @@ class GLGridItem(GLGraphicsItem):
         self,
         size = (1., 1.),
         spacing = (1.,1.),
-        color = (1.,1.,1.,0.4),
+        color = (1.,1.,1.,1),
         lineWidth = 1,
-        antialias = True,
+        lights: List[PointLight] = list(),
+        antialias: bool = True,
         glOptions = 'translucent',
         parentItem = None
     ):
@@ -57,6 +60,7 @@ class GLGridItem(GLGraphicsItem):
         ], dtype=np.float32)
         self.rotate(90, 1, 0, 0)
         self.setDepthValue(-1)
+        self.addLight(lights)
 
     def initializeGL(self):
         self.shader = Shader(vertex_shader, fragment_shader)
@@ -70,27 +74,32 @@ class GLGridItem(GLGraphicsItem):
 
     def paint(self, model_matrix=Matrix4x4()):
         self.setupGLState()
+        self.setupLight(self.shader)
 
         if self.antialias:
             gl.glEnable(gl.GL_LINE_SMOOTH)
             gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
         gl.glLineWidth(self.__lineWidth)
 
-        self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
-        self.shader.set_uniform("model", model_matrix.glData, "mat4")
-
         with self.shader:
+            self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.shader.set_uniform("model", model_matrix.glData, "mat4")
+            self.shader.set_uniform("ViewPos",self.view_pos(), "vec3")
+
             self.vao.bind()
-            self.shader.set_uniform("objColor1", self.__color, "vec4")
+            # draw surface
+            self.shader.set_uniform("oColor", self.__color, "vec4")
             self.vbo1.setAttrPointer(1, attr_id=0)
             gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, 0, 4)
 
+            # draw lines
             gl.glDisable(gl.GL_BLEND)
             gl.glDisable(gl.GL_DEPTH_TEST)
-            self.shader.set_uniform("objColor1", Vector3([0, 0, 0, 1]), "vec4")
+            self.shader.set_uniform("oColor", np.array([0, 0, 0, 1], "f4"), "vec4")
             self.vbo1.setAttrPointer(0, attr_id=0)
             gl.glDrawArrays(gl.GL_LINES, 0, len(self.line_vertices))
             gl.glEnable(gl.GL_DEPTH_TEST)
+            gl.glEnable(gl.GL_BLEND)
 
 
 vertex_shader = """
@@ -99,21 +108,71 @@ vertex_shader = """
 uniform mat4 model;
 uniform mat4 view;
 
-layout (location = 0) in vec3 iPos;
+layout (location = 0) in vec3 aPos;
+out vec3 FragPos;
+out vec3 Normal;
 
 void main() {
-    gl_Position = view * model * vec4(iPos, 1.0);
+    FragPos = vec3(model * vec4(aPos, 1.0));
+    Normal = normalize(mat3(transpose(inverse(model))) * vec3(0, 0, -1));
+    gl_Position = view * vec4(FragPos, 1.0);
 }
 """
+
+
 
 fragment_shader = """
 #version 330 core
 out vec4 FragColor;
 
-uniform vec4 objColor1;
+in vec3 FragPos;
+in vec3 Normal;
 
+uniform vec3 ViewPos;
+uniform vec4 oColor;
+
+struct PointLight {
+    vec3 position;
+
+    float constant;
+    float linear;
+    float quadratic;
+
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+};
+#define MAX_POINT_LIGHTS 10
+uniform PointLight pointLight[MAX_POINT_LIGHTS];
+uniform int nr_point_lights;
+
+float shininess = 32.0;
+
+vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewPos)
+{
+    vec3 viewDir = normalize(viewPos - fragPos);
+    vec3 lightDir = normalize(light.position - fragPos);
+    vec3 halfwayDir = normalize(lightDir + viewDir);
+    // 漫反射着色
+    float diff = abs(dot(normal, lightDir));
+    // 镜面光着色
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
+    // 合并结果
+    vec3 ambient  = light.ambient * oColor.xyz * 0.3;
+    vec3 diffuse  = light.diffuse * diff * oColor.xyz * 0.5;
+    vec3 specular = light.specular * spec * oColor.xyz * 0.2;
+
+    return ambient + specular + diffuse;
+}
 
 void main() {
-    FragColor = objColor1;
+
+    vec3 result = vec3(0);
+    for(int i = 0; i < nr_point_lights; i++)
+        result += CalcPointLight(pointLight[i], Normal, FragPos, ViewPos);
+    if(nr_point_lights == 0){
+        result = oColor.rgb;
+    }
+    FragColor = vec4(result.rgb, oColor.a);
 }
 """

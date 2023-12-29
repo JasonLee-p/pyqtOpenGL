@@ -197,7 +197,7 @@ class QGelSlimWidget(GLViewWidget):
         self.gelslim_model = GLGelSimItem(lights=[self.light, self.light1, self.light2])
 
 
-        vert, ind = sphere(0.08)
+        vert, ind = sphere(0.12)
         self.pointcloud = GLInstancedMeshItem(
                             None, vert, ind,
                             lights=[self.light, self.light1, self.light2],

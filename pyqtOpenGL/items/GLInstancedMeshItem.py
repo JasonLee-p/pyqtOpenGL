@@ -43,15 +43,19 @@ class GLInstancedMeshItem(GLGraphicsItem, LightMixin):
         if color is not None:
             self._color = np.array(color, dtype=np.float32)
             self._gl_update_flag = True
+
         if pos is not None:
             self._pos = np.array(pos, dtype=np.float32).reshape(-1, 3)
             self._gl_update_flag = True
-            if self._color is not None and self._color.size == 3:
-                self._color = np.tile(self._color, (self._pos.shape[0], 1))
+            if self._color is not None and self._color.size!=self._pos.shape[0]*3 and self._color.size>=3:
+                self._color = np.tile(self._color.ravel()[:3], (max(self._pos.shape[0], 1), 1))
+
         if opacity is not None:
             self._opacity = opacity
+
         if size is not None:
             self._size = size
+
         self.update()
 
     def initializeGL(self):

@@ -88,7 +88,13 @@ def optimize_gif(
             "the gifsicle and pygifsicle documentation."
         ))
 
-
+def crop_img(img, rect):
+    h, w = img.shape[:2]
+    x = int(rect[0] * w)
+    y = int(rect[1] * h)
+    w = int(rect[2] * w)
+    h = int(rect[3] * h)
+    return img[y:y+h, x:x+w]
 
 def video2gif(
     video_path,
@@ -98,11 +104,13 @@ def video2gif(
     shape_scale = 1,
     img_shape = None,  # h, w
     optimize_options = ['-O3'], # '--colors', '128',
+    crop_rect = (0, 0, 1, 1),  # x, y, w, h
 ):
     video = VideoReader(video_path)
 
     # calculate img shape
     img = video.get_frame()[0]
+    img = crop_img(img, crop_rect)
     if img_shape is None:
         img_shape = (int(img.shape[0]*shape_scale), int(img.shape[1]*shape_scale))
     else:
@@ -123,6 +131,7 @@ def video2gif(
     pbar_width = 20
     cnt = 0
     for img, stamp in video.get_generator(fps=fps / speed):
+        img = crop_img(img, crop_rect)
         frame = av.VideoFrame.from_ndarray(img, format='bgr24')
         frame = frame.reformat(format='rgb8')
         gif_container.mux(stream.encode(frame))

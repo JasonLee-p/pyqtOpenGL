@@ -21,7 +21,6 @@ class GLView(GLViewWidget):
         self.ax = GLAxisItem(size=(8, 8, 8))
         self.box = GLBoxTextureItem(size=(2, 2, 2))
         self.box.translate(0, 1.1, 0)
-        self.grid = GLGridItem(size=(7, 7), lineWidth=1)
         self.text = GLTextItem(text="Hello World", pos=(2, 6, -1), color=(1, 0.6, 1), fixed=False)
         self.arrow = GLArrowPlotItem(start_pos=ver1+[5,-1,0], end_pos=ver1+normal1+[5,-1,0], color=[1,1,0])
 
@@ -35,6 +34,12 @@ class GLView(GLViewWidget):
         self.light = PointLight(pos=[0, 5, 4], ambient=(0.8, 0.8, 0.8),diffuse=(0.8, 0.8, 0.8))
         self.light1 = PointLight(pos=[0, -5, 1], diffuse=(0, .8, 0))
         self.light2 = PointLight(pos=[-12, 3, 2], diffuse=(0.8, 0, 0))
+
+        # -- grid
+        self.grid = GLGridItem(
+            size=(7, 7), lineWidth=1,
+            lights=[self.light, self.light1, self.light2]
+        )
 
         # -- model
         self.model = GLModelItem(

@@ -22,7 +22,12 @@ class GLView(GLViewWidget):
         super().__init__(parent=parent, **kwargs)
         self.ax = GLAxisItem(size=(4, 4, 4))
         self.ax.translate(-9, -9, 0)
-        self.grid = GLGridItem(size=(200, 200), spacing=(10, 10))
+        self.grid = GLGridItem(
+            size=(200, 200), spacing=(10, 10),
+            lights=[
+                PointLight(pos=[3, 5, 10], ambient=(1.5, 1.5, 1.5), diffuse=(1,1, 1), visible=False)
+            ],
+        )
         self.grid.rotate(90, 1, 0, 0)
         self.grid.translate(10, 0, -20)
 
@@ -33,7 +38,8 @@ class GLView(GLViewWidget):
 
         self.light = PointLight(pos=[-15, -5, 7], diffuse=(0, 0, 0.8))
         self.light1 = PointLight(pos=[0, 15, 3], diffuse=(0, .8, 0))
-        self.light2 = PointLight(pos=[3, 5, 10], diffuse=(0.8, 0.8, 0.8))
+        self.light2 = PointLight(pos=[3, 5, 10], diffuse=(1,1, 1))
+
         self.model = GLGelSimItem(lights=[self.light, self.light1, self.light2])
 
         self.addItem(self.ax)

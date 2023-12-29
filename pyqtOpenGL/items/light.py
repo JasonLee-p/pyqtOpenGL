@@ -5,12 +5,13 @@ from ctypes import c_float, sizeof, c_void_p, Structure
 from .shader import Shader
 from .BufferObject import VAO, VBO, EBO
 from ..transform3d import Vector3, Matrix4x4
+from ..GLGraphicsItem import GLGraphicsItem
 from .MeshData import sphere
-from typing import List
+
 
 __all__ = ["PointLight", "LightMixin"]
 
-class PointLight():
+class PointLight(GLGraphicsItem):
 
     def __init__(
         self,
@@ -22,7 +23,10 @@ class PointLight():
         linear = 0.01,
         quadratic = 0.001,
         visible = True,
+        glOptions = "opaque",
     ):
+        super().__init__(parentItem=None)
+        self.setGLOptions(glOptions)
         self.position = pos
         self.amibent = ambient
         self.diffuse = diffuse
@@ -30,8 +34,7 @@ class PointLight():
         self.constant = constant
         self.linear = linear
         self.quadratic = quadratic
-        self.visible = visible
-        self._update_flag = True  # 更新标志, 同一场景同一帧只更新一次
+        self.__visible = visible
 
     def set_uniform(self, shader: Shader, name: str):
         shader.set_uniform(name + ".position", self.position, "vec3")
@@ -52,7 +55,7 @@ class PointLight():
         if specular is not None:
             self.specular = Vector3(specular)
         if visible is not None:
-            self.visible = visible
+            self.__visible = visible
 
     def translate(self, dx, dy, dz):
         self.position += [dx, dy, dz]
@@ -64,10 +67,29 @@ class PointLight():
     def scale(self, x, y, z):
         self.position *= [x, y, z]
 
+    @classmethod
+    def initializeGL(cls):
+        cls._light_vert, cls._light_idx = sphere(0.3, 12, 12, offset=True)
+        cls._light_vao = VAO()
+        cls._light_vbo = VBO([cls._light_vert], [3])
+        cls._light_vbo.setAttrPointer([0], [0])
+        cls._light_ebo = EBO(cls._light_idx)
+        cls._light_shader = Shader(vertex_shader, fragment_shader)
+
+    def paint(self, view_matrix: Matrix4x4):
+        if not self.__visible:
+            return
+
+        self.setupGLState()
+        with PointLight._light_shader:
+            PointLight._light_shader.set_uniform("view", view_matrix.glData, "mat4")
+            PointLight._light_shader.set_uniform("_lightPos", self.position, "vec3")
+            PointLight._light_shader.set_uniform("_lightColor", self.diffuse, "vec3")
+            PointLight._light_vao.bind()
+            gl.glDrawElements(gl.GL_TRIANGLES, self._light_idx.size, gl.GL_UNSIGNED_INT, c_void_p(0))
+
 
 class LightMixin():
-
-    LightInited = False
 
     @property
     def light_count(self):
@@ -80,39 +102,12 @@ class LightMixin():
         elif isinstance(light, list):
             self.lights.extend(light)
 
-    def initializeLight(self):
-        self._light_vert, self._light_idx = sphere(0.3, 12, 12, offset=True)
-        self._light_vao = VAO()
-        self._light_vbo = VBO([self._light_vert], [3])
-        self._light_vbo.setAttrPointer([0], [0])
-        self._light_ebo = EBO(self._light_idx)
-        self._light_shader = Shader(vertex_shader, fragment_shader)
-        LightMixin.LightInited = True
-
-    def paintLight(self, light):
-        with self._light_shader:
-            self._light_shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
-            self._light_shader.set_uniform("_lightPos", light.position, "vec3")
-            self._light_shader.set_uniform("_lightColor", light.diffuse, "vec3")
-            self._light_vao.bind()
-            gl.glDrawElements(gl.GL_TRIANGLES, self._light_idx.size, gl.GL_UNSIGNED_INT, c_void_p(0))
-
     def setupLight(self, shader: Shader):
-        """设置光源 uniform 属性, 绘制光源, 在设置完 view, projection 后调用
-        每次 update 只调用一次
+        """设置光源 uniform 属性
         """
-        if not LightMixin.LightInited:
-            self.initializeLight()
-
         for i, light in enumerate(self.lights):
-            # 每一帧只绘制一次光源
-            if light._update_flag and light.visible:
-                self.paintLight(light)
-                light._update_flag = False
-
             light.set_uniform(shader, "pointLight[" + str(i) + "]")
         shader.set_uniform("nr_point_lights", len(self.lights), "int")
-
 
 
 

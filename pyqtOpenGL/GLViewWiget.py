@@ -4,7 +4,9 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 from .camera import Camera
 from .functions import mkColor
 from .transform3d import Matrix4x4, Quaternion, Vector3
-
+from typing import List, Set
+from .GLGraphicsItem import GLGraphicsItem
+from .items.light import PointLight
 
 class GLViewWidget(QtWidgets.QOpenGLWidget):
 
@@ -16,6 +18,7 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         roll = 0.,
         fov = 45.,
         bg_color = (0.2, 0.3, 0.3, 1.),
+        # bg_color = (0.95, 0.95, 0.95, 1.),
         parent=None,
     ):
         """
@@ -27,8 +30,8 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
 
         self.camera = Camera(cam_position, yaw, pitch, roll, fov)
         self.bg_color = bg_color
-        self.items = []
-        self.lights = set()
+        self.items : List[GLGraphicsItem] = []
+        self.lights: Set[PointLight] = set()
 
     def get_proj_view_matrix(self):
         view = self.camera.get_view_matrix()
@@ -97,6 +100,10 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
     def getViewport(self):
         return (0, 0, self.deviceWidth(), self.deviceHeight())
 
+    def initializeGL(self):
+        """initialize OpenGL state after creating the GL context."""
+        PointLight.initializeGL()
+
     def paintGL(self):
         """
         viewport specifies the arguments to glViewport. If None, then we use self.opts['viewport']
@@ -106,8 +113,6 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         glClearColor(*self.bg_color)
         glDepthMask(GL_TRUE)
         glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT )
-        for light in self.lights:  # update light only once per frame
-            light._update_flag = True
         self.drawItems()
 
     def drawItems(self):
@@ -117,6 +122,10 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
             except:
                 printExc()
                 print("Error while drawing item %s." % str(it))
+
+        # draw lights
+        for light in self.lights:
+            light.paint(self.get_proj_view_matrix())
 
     def pixelSize(self, pos=Vector3(0, 0, 0)):
         """
@@ -152,7 +161,6 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
                 diff.setY(0)
             else:
                 diff.setX(0)
-
 
         if ev.buttons() == QtCore.Qt.MouseButton.LeftButton:
             if alt_down:

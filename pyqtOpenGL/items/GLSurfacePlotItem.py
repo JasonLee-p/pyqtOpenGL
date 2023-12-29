@@ -107,6 +107,7 @@ class GLSurfacePlotItem(GLGraphicsItem, LightMixin):
         self.setupGLState()
 
         self.setupLight(self.shader)
+
         with self.shader:
             self.vao.bind()
             self.normal_texture.bind()
