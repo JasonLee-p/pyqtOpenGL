@@ -817,12 +817,15 @@ def add_line(layout, type: str='h'):
 def create_layout(
     parent,
     type : str = "v",
-    widgets : list = [],
-    stretchs : list = [],
+    widgets : list = None,
+    stretchs : list = None,
     content_margins : tuple = (0, 0, 0, 0),
     spacing : int = 0,
 ):
     """创建布局"""
+    widgets = widgets if widgets is not None else []
+    stretchs = stretchs if stretchs is not None else []
+
     layout = QtWidgets.QVBoxLayout(parent) if type == "v" else QtWidgets.QHBoxLayout(parent)
     layout.setContentsMargins(*content_margins)
     layout.setSpacing(spacing)

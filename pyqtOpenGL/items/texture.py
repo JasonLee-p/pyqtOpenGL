@@ -36,7 +36,7 @@ class Texture2D:
 
     def __init__(
         self,
-        source = None,
+        source: Union[str, np.ndarray] = None,
         tex_type: str = "tex_diffuse",
         mag_filter = gl.GL_LINEAR,
         min_filter = gl.GL_LINEAR_MIPMAP_LINEAR,

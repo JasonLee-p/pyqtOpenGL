@@ -64,13 +64,17 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
     def reset(self):
         self.camera.set_params(Vector3(0., 0., 10.), 0, 0, 0, 45)
 
-    def addItem(self, item):
+    def addItem(self, item: GLGraphicsItem):
         self.items.append(item)
         item.setView(self)
         if hasattr(item, 'lights'):
             self.lights |= set(item.lights)
         self.items.sort(key=lambda a: a.depthValue())
         self.update()
+
+    def addItems(self, items: List[GLGraphicsItem]):
+        for item in items:
+            self.addItem(item)
 
     def removeItem(self, item):
         """

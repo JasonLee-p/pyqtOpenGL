@@ -69,7 +69,7 @@ class PointLight(GLGraphicsItem):
 
     @classmethod
     def initializeGL(cls):
-        cls._light_vert, cls._light_idx = sphere(0.3, 12, 12, offset=True)
+        cls._light_vert, cls._light_idx = sphere(0.3, 12, 12)
         cls._light_vao = VAO()
         cls._light_vbo = VBO([cls._light_vert], [3])
         cls._light_vbo.setAttrPointer([0], [0])

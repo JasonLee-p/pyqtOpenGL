@@ -9,6 +9,7 @@ from ..transform3d import Matrix4x4, Quaternion, Vector3
 from .shader import Shader
 from .MeshData import Mesh
 from .light import LightMixin, light_fragment_shader
+from typing import List
 
 __all__ = ['GLModelItem']
 
@@ -30,7 +31,7 @@ class GLModelItem(GLGraphicsItem, LightMixin):
         self.gamma_correction = gamma
         self.setGLOptions(glOptions)
         # model
-        self.meshes = list()
+        self.meshes: List[Mesh] = list()
         self._load_model(path, texcoords_scale)
         # light
         self.addLight(lights)

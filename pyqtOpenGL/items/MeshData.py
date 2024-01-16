@@ -1,5 +1,7 @@
 import numpy as np
 import math
+from typing import List
+from pathlib import Path
 import OpenGL.GL as gl
 import assimp_py as assimp
 from ctypes import c_float, sizeof, c_void_p, Structure
@@ -35,9 +37,9 @@ class Material():
         specular = [0.2, 0.2, 0.2],
         shininess = 10,
         opacity = 1,
-        textures: list = list(),
+        textures: List[Texture2D] = list(),
         textures_paths: dict = dict(),
-        directory = None,
+        directory = Path(),
     ):
         self.ambient = Vector3(ambient)
         self.diffuse = Vector3(diffuse)
@@ -63,9 +65,13 @@ class Material():
 
     def load_textures(self):
         """在 initializeGL() 中调用 """
-        for type, paths in self.texture_paths.items():
+        for type, path in self.texture_paths.items():
+            if isinstance(path, list):
+                path = path[0]
+            if type in TextureType.keys():
+                type = TextureType[type]
             self.textures.append(
-                Texture2D(self.directory / paths[0], tex_type=TextureType[type])
+                Texture2D(self.directory / path, tex_type=type)
             )
 
     def set_uniform(self, shader: Shader, name: str):
@@ -192,59 +198,84 @@ def direction_matrixs(starts, ends):
     # 处理零向量，归一化
     arrow_lens = np.linalg.norm(arrows, axis=1)
     zero_idxs = arrow_lens < 1e-3
-    arrows[zero_idxs] = [0, 0, 1e-3]
-    arrow_lens[zero_idxs] = 1e-3
+    arrows[zero_idxs] = [0, 0, 1]
+    arrow_lens[zero_idxs] = 1
     arrows = arrows / arrow_lens[:, np.newaxis]
     # 构造标准箭头到目标箭头的旋转矩阵
-    e = np.zeros_like(arrows)
-    e[arrows[:, 0]==0, 0] = 1
-    e[arrows[:, 0]!=0, 1] = 1
-    b1 = np.cross(arrows, e)  # 第一个正交向量 (n, 3)
-    b1 = b1 / np.linalg.norm(b1, axis=1, keepdims=True)  # 单位化
-    b2 = np.cross(arrows, b1)  # 第二个正交单位向量 (n, 3)
-    transforms = np.stack((b1, b2, arrows, ends.reshape(-1, 3)), axis=1)  # (n, 4(new), 3)
+    T = np.zeros_like(arrows)
+    B = np.zeros_like(arrows)
+    mask = arrows[:, 2] < -0.99999
+    T[mask, 1] = -1
+    B[mask, 0] = -1
+    mask = np.logical_not(mask)
+    a = 1 / (1 + arrows[mask, 2])
+    b = -arrows[mask, 0] * arrows[mask, 1] * a
+    T[mask] = np.stack((
+        1 - arrows[mask, 0] * arrows[mask, 0] * a,
+        b,
+        -arrows[mask, 0],
+    ), axis=1)
+    B[mask] = np.stack((
+        b,
+        1 - arrows[mask, 1] * arrows[mask, 1] * a,
+        -arrows[mask, 1],
+    ), axis=1)
     # 转化成齐次变换矩阵
+    transforms = np.stack((T, B, arrows, ends.reshape(-1, 3)), axis=1)  # (n, 4(new), 3)
     transforms = np.pad(transforms, ((0, 0), (0, 0), (0, 1)), mode="constant", constant_values=0)  # (n, 4, 4)
     transforms[:, 3, 3] = 1
     # 将 arrow_vert(n, 3) 变换至目标位置
     # vertexes = vertexes @ transforms  #  (n, 3)
     return transforms.copy()
 
+def get_sphere_uv(verts):
+    """采样球面贴图 verts: [n, 3]"""
+    r = np.sqrt(verts[0, 0]**2 + verts[0, 1]**2 + verts[0, 2]**2)
+    v = verts / r
+    uv = np.zeros((verts.shape[0], 2), dtype=np.float32)
+    uv[:, 0] = np.arctan2(v[:, 0], v[:, 1])
+    uv[:, 1] = np.arcsin(v[:, 2])
+    uv *= np.array([1 / (2 * np.pi), 1 / np.pi])
+    uv += 0.5
+    return uv
 
-def sphere(radius=1.0, rows=12, cols=12, offset=True):
+def sphere(radius=1.0, rows=12, cols=12, calc_uv_norm=False):
         """
         Return a MeshData instance with vertexes and faces computed
         for a spherical surface.
         """
-        verts = np.empty((rows+1, cols, 3), dtype=np.float32)
+        verts = np.empty((rows+1, cols+1, 3), dtype=np.float32)
 
-        ## compute vertexes
-        phi = (np.arange(rows+1) * np.pi / rows).reshape(rows+1, 1)
+        # compute vertexes
+        phi = np.linspace(0, np.pi, rows+1, dtype=np.float32).reshape(rows+1, 1)
         s = radius * np.sin(phi)
         verts[...,2] = radius * np.cos(phi)
-        th = ((np.arange(cols) * 2 * np.pi / cols).reshape(1, cols))
-        if offset:
-            th = th + ((np.pi / cols) * np.arange(rows+1).reshape(rows+1,1))  ## rotate each row by 1/2 column
+
+        th = np.linspace(0, 2 * np.pi, cols+1, dtype=np.float32).reshape(1, cols+1)
         verts[...,0] = s * np.cos(th)
         verts[...,1] = s * np.sin(th)
-        verts = verts.reshape((rows+1)*cols, 3)[cols-1:-(cols-1)]  ## remove redundant vertexes from top and bottom
+        verts = verts.reshape(-1, 3)
 
-        ## compute faces
-        faces = np.empty((rows*cols*2, 3), dtype=np.uint32)
-        rowtemplate1 = ((np.arange(cols).reshape(cols, 1) + np.array([[0, 0, 1]])) % cols) + np.array([[0, cols, 0]])
-        rowtemplate2 = ((np.arange(cols).reshape(cols, 1) + np.array([[0, 1, 1]])) % cols) + np.array([[cols, cols, 0]])
-        for row in range(rows):
-            start = row * cols * 2
-            faces[start:start+cols] = rowtemplate1 + row * cols
-            faces[start+cols:start+(cols*2)] = rowtemplate2 + row * cols
-        faces = faces[cols:-cols]  ## cut off zero-area triangles at top and bottom
+        # compute faces
+        faces = np.empty((rows, 2, cols, 3), dtype=np.uint32)
+        rowtemplate1 = np.arange(cols).reshape(1, cols, 1) + np.array([[[0     , cols+1, 1]]]) # 1, cols, 3
+        rowtemplate2 = np.arange(cols).reshape(1, cols, 1) + np.array([[[cols+1, cols+2, 1]]]) # 1, cols, 3
+        rowbase = np.arange(rows).reshape(rows, 1, 1) * (cols+1)  # nrows, 1, 1
+        faces[:, 0] = (rowtemplate1 + rowbase)  # nrows, 1, ncols, 3
+        faces[:, 1] = (rowtemplate2 + rowbase)
 
-        ## adjust for redundant vertexes that were removed from top and bottom
-        vmin = cols-1
-        faces[faces<vmin] = vmin
-        faces -= vmin
-        vmax = verts.shape[0]-1
-        faces[faces>vmax] = vmax
+        faces = faces.reshape(-1, 3)
+        faces = faces[cols:-cols]  # cut off zero-area triangles at top and bottom
+
+        # compute uv and normals
+        if calc_uv_norm:
+            uv = np.zeros((rows+1, cols+1, 2), dtype=np.float32)
+            uv[..., 0] = th / (2 * np.pi)
+            uv[..., 1] = phi / np.pi
+            uv = uv.reshape(-1, 2)
+            norms = verts / radius  # rows, cols, 2
+            return verts, faces, uv, norms
+
         return verts, faces
 
 
@@ -385,7 +416,9 @@ def vertex_normal(vert, ind):
         v1, v2, v3 = vert[ind[i]] # 获取面的三个顶点
         fn = face_normal(v1, v2, v3) # 计算面的法向量
         norm[ind[i]] += fn # 将面的法向量累加到对应的顶点上
-    norm = norm / np.linalg.norm(norm, axis=1, keepdims=True) # 归一化每个顶点的法向量
+    norm_len = np.linalg.norm(norm, axis=1, keepdims=True) # 计算每个顶点的法向量的长度
+    norm_len[norm_len < 1e-5] = 1  # 处理零向量
+    norm = norm / norm_len  # 归一化每个顶点的法向量
     return norm
 
 

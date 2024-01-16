@@ -12,7 +12,7 @@ class GLView(GLViewWidget):
         super().__init__(parent=parent, **kwargs)
 
         ver1, ind1 = sphere(2, 20, 20)
-        normal1 = vertex_normal(ver1, ind1)
+        normal1 = ver1 / 2
         ver2, ind2 = cylinder(radius=[1.2, 1], cols=12, rows=8, length=2.4)
         img = Image.open("./pyqtOpenGL/items/resources/textures/box.png")
         img = np.array(img, dtype='f4')
@@ -22,7 +22,11 @@ class GLView(GLViewWidget):
         self.box = GLBoxTextureItem(size=(2, 2, 2))
         self.box.translate(0, 1.1, 0)
         self.text = GLTextItem(text="Hello World", pos=(2, 6, -1), color=(1, 0.6, 1), fixed=False)
-        self.arrow = GLArrowPlotItem(start_pos=ver1+[5,-1,0], end_pos=ver1+normal1+[5,-1,0], color=[1,1,0])
+        self.arrow = GLArrowPlotItem(
+            start_pos=ver1+[5,-1,0],
+            end_pos=ver1+normal1+[5,-1,0],
+            color=[1,1,0]
+        )
 
         # -- scatter and line
         pos = np.random.uniform(-2, 2, size=(15, 3)).astype('f4')*(2, 1, 2) + [0, -3, 0]
@@ -54,6 +58,7 @@ class GLView(GLViewWidget):
             lights=[self.light, self.light1, self.light2],
             indices=ind1,
             vertexes=ver1,
+            normals=normal1,
             color=(0.7,0.8,0.8)
         )
 

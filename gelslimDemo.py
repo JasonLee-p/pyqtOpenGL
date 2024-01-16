@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from time import time
 from pyqtOpenGL.items import *
-from pyqtOpenGL.GLViewWiget import GLViewWidget
+from pyqtOpenGL import GLViewWidget
 from pyqtOpenGL.items.GLGelSlimItem import GLGelSimItem
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
@@ -51,7 +51,6 @@ class GLView(GLViewWidget):
         timer.start(30)
 
         self.t0 = time()
-        self.cnt = 10
 
     def onTimeout(self):
         if self.flag:

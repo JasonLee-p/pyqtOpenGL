@@ -1,4 +1,4 @@
-from .GLViewWiget import GLViewWidget
+from .GLViewWidget import GLViewWidget
 from .transform3d import Matrix4x4
 from .items import *
 from PyQt5.QtCore import Qt
@@ -26,7 +26,10 @@ class DefaultViewWidget(GLViewWidget):
         self.axis.translate(-240, -320, 0)
         self.addItem(self.axis)
         # 网格曲面
-        self.grid1 = GLGridItem(size=(480, 640), spacing=(40, 40))
+        self.grid1 = GLGridItem(size=(480, 640), spacing=(40, 40),
+                                lights=[PointLight(pos=[0, 0, 1000],
+                                                   ambient=(0.8, 0.8, 0.8),
+                                                   diffuse=(1., 1., 1.))])
         self.grid1.rotate(90, 1, 0, 0)
         self.grid1.translate(0, 0, 0)
         self.addItem(self.grid1)
@@ -186,7 +189,10 @@ class QGelSlimWidget(GLViewWidget):
         self.ax = GLAxisItem(size=(3, 3, 3))
         self.ax.translate(-6.75*3/4, -6.75, 0.5)
 
-        self.grid = GLGridItem(size=(200, 200), spacing=(10, 10))
+        self.grid = GLGridItem(size=(200, 200), spacing=(10, 10),
+                               lights=[PointLight(pos=[0, 0, 500],
+                                                  ambient=(0.8, 0.8, 0.8),
+                                                  diffuse=(1., 1., 1.))])
         self.grid.rotate(90, 1, 0, 0)
         self.grid.translate(10, 0, -20)
 
@@ -222,8 +228,6 @@ class QGelSlimWidget(GLViewWidget):
         self.addItem(self.grid)
         self.addItem(self.gelslim_model)
         self.addItem(self.pointcloud)
-
-        self.cnt = 10
 
     def setData(self, zmap, start_pts, end_pts, **kwargs):
         if zmap.ndim == 3:

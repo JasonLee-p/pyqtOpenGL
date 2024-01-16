@@ -170,7 +170,7 @@ class Matrix4x4(QMatrix4x4):
         self.setColumn(3, QVector4D(x, y, z, 1))
         return self
 
-    def setData(self, matrix):
+    def setData(self, matrix: Union[np.ndarray, QMatrix4x4]):
         """set matrix data"""
         for i in range(4):
             self.setRow(i, matrix.row(i))
@@ -181,6 +181,23 @@ class Matrix4x4(QMatrix4x4):
             return self * matrix
         else:
             return matrix * self
+
+    @classmethod
+    def fromRotTrans(cls, R: np.ndarray, t=None):
+        """rotate by R and translate by t"""
+        if t is None:
+            t = np.zeros(3, dtype='f4')
+        data = np.zeros((4,4), dtype='f4')
+        data[:3,:3] = R
+        data[:3,3] = t
+        data[3,3] = 1
+        return cls(data)
+
+    @classmethod
+    def fromEulerAngles(cls, pitch, yaw, roll):
+        """rotate around x, then y, then z"""
+        rot = Quaternion.fromEulerAngles(pitch, yaw, roll)
+        return cls.fromQuaternion(rot)
 
     @classmethod
     def fromTranslation(cls, x=0., y=0., z=0.):
@@ -242,7 +259,8 @@ class Matrix4x4(QMatrix4x4):
             other = other.xyz
         assert isinstance(other, np.ndarray), f"unsupported type {type(other)}"
 
-        # apply rotation to vectors np.array([[x1,y1,z1], [x2,y2,z2], ...])
+        # apply rotation to vectors v = np.array([[x1,y1,z1], [x2,y2,z2], ...]), n,3
+        # v * R.T + t
         mat4 = self.matrix44
         rot = mat4[:3,:3]
         trans = mat4[:3,3]
