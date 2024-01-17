@@ -1,9 +1,12 @@
 from contextlib import contextmanager
-from typing import List, Union, Dict, Callable, Type
+from typing import List, Union, Dict, Callable, Type, Tuple
 from PyQt5.QtCore import Qt, QPoint, QSize
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtGui import QFocusEvent, QMouseEvent
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton
 
+Number = Union[int, float]
+NumberTuple = Tuple[Number]
 
 def create_layout(
     parent,
@@ -32,11 +35,12 @@ class CollapseTitleBar(QtWidgets.QFrame):
     """折叠标题栏"""
     toggleCollapsed = QtCore.pyqtSignal(bool)
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent:QWidget):
+        super().__init__(parent)
         self.setupUi()
         self.is_collapsed = False
-        self.pushButton.clicked.connect(self.on_click)
+        self.collapse_button.clicked.connect(self.on_click)
+        self.close_button.clicked.connect(parent.close)
 
     def setLabel(self, label):
         self.label.setText(label)
@@ -46,25 +50,31 @@ class CollapseTitleBar(QtWidgets.QFrame):
                                                 QtWidgets.QSizePolicy.Fixed)
         self.setSizePolicy(sizeFixedPolicy)
         self.setStyleSheet("background-color: #0f5687; color: white;")
-        self.hbox = QtWidgets.QHBoxLayout(self)
-        self.hbox.setContentsMargins(5, 0, 0, 0)
-        self.hbox.setSpacing(5)
-        self.pushButton = QtWidgets.QPushButton(self)
-        self.pushButton.setFixedSize(QSize(20, 20))
-        self.pushButton.setStyleSheet(
+
+        self.collapse_button = QtWidgets.QPushButton("▾", self)
+        self.collapse_button.setFixedSize(QSize(20, 20))
+        self.collapse_button.setStyleSheet(
             "QPushButton { border-radius: 10px; }"
             "QPushButton:hover { background-color: #288ad4; }"
         )
+
+        self.close_button = QtWidgets.QPushButton("×", self)
+        self.close_button.setFixedSize(QSize(25, 25))
+        self.close_button.setStyleSheet(
+            "QPushButton { border: 0px; }"
+            "QPushButton:hover { background-color: #288ad4; }"
+        )
+
         self.label = QtWidgets.QLabel(self)
         self.label.setMinimumSize(QSize(0, 25))
-        self.label.setObjectName("label")
-        self.hbox.addWidget(self.pushButton)
-        self.hbox.addWidget(self.label)
-        self.pushButton.setText("▾")
+
+        self.hbox = create_layout(self, True,
+                                  [self.collapse_button, self.label, self.close_button],
+                                  [1, 1, 1])
 
     def on_click(self):
         self.is_collapsed = not self.is_collapsed
-        self.pushButton.setText("▾▸"[self.is_collapsed])
+        self.collapse_button.setText("▾▸"[self.is_collapsed])
         self.toggleCollapsed.emit(self.is_collapsed)
 
 
@@ -89,6 +99,7 @@ class ToolContainer():
 
 
 class ToolGroup(QtWidgets.QWidget, ToolContainer):
+    """不带边框的group"""
 
     def __init__(self, horizontal=True, spacing=5):
         super().__init__()
@@ -142,7 +153,8 @@ class ToolGroupBox(QtWidgets.QGroupBox, ToolContainer):
 
 class ToolWindow(QtWidgets.QWidget, ToolContainer):
 
-    def __init__(self, label="ToolWindow", spacing=5):
+    def __init__(self, label="ToolWindow", spacing=5,
+                 pos:Union[Tuple[int], List[int]]=(0, 0)):
         super().__init__()
         self.setupUi()
         self.title_bar.setLabel(label)
@@ -154,6 +166,7 @@ class ToolWindow(QtWidgets.QWidget, ToolContainer):
 
         # signals
         self.title_bar.toggleCollapsed.connect(self.on_toggleCollapsed)
+        self.move(pos[0], pos[1])
         self.show()
 
     def setupUi(self):
@@ -161,7 +174,7 @@ class ToolWindow(QtWidgets.QWidget, ToolContainer):
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
 
         # 创建一个自定义标题栏
-        self.title_bar = CollapseTitleBar()
+        self.title_bar = CollapseTitleBar(self)
 
         # 容器
         self.container = QtWidgets.QFrame()
@@ -220,6 +233,7 @@ class ToolWindow(QtWidgets.QWidget, ToolContainer):
     def get_layout(self):
         return self.container_box
 
+
 class ButtonItem(QPushButton, ToolItem):
 
     def __init__(self, label="Button", value=False, checkable=False, callback: Callable=None):
@@ -262,10 +276,10 @@ class CheckListItem(QtWidgets.QFrame, ToolItem):
     """互斥 checkboxes"""
     sigClicked = QtCore.pyqtSignal(object)
 
-    def __init__(self, items: List[str], value:int=0, horizontal=True, exclusive=True, callback: Callable=None):
+    def __init__(self, items: Tuple[str], value:int=0, horizontal=True, exclusive=True, callback: Callable=None):
         super().__init__()
         # 设置边框颜色和底色
-        self.setStyleSheet("QFrame{border:1px solid #aaaaaa;}")
+        self.setStyleSheet("QFrame{border:1px solid #aaaaaa; border-radius: 3px; background-color: #ffffff;}")
         self.exclusive = exclusive
         if horizontal:
             self.box = QtWidgets.QHBoxLayout(self)
@@ -312,7 +326,7 @@ class CheckListItem(QtWidgets.QFrame, ToolItem):
 
 
 class ComboItem(QtWidgets.QWidget, ToolItem):
-    def __init__(self, label:str, items: List[str], value: int=0, callback: Callable=None):
+    def __init__(self, label:str, items: Tuple[str], value: int=0, callback: Callable=None):
         super().__init__()
         self.setMaximumWidth(400)
         self.combo = QtWidgets.QComboBox(self)
@@ -431,7 +445,7 @@ class ArrayTypeItem(QtWidgets.QWidget, ToolItem):
 
     sigChanged = QtCore.pyqtSignal(object)
 
-    def __init__(self, label:str, value:List[Union[int, float]],
+    def __init__(self, label:str, value:NumberTuple,
                  type:Union[Type[int], Type[float]], editable=True, callback: Callable=None):
         super().__init__()
         self._value = value
@@ -453,6 +467,7 @@ class ArrayTypeItem(QtWidgets.QWidget, ToolItem):
             if not editable:
                 input.setFocusPolicy(Qt.NoFocus)
             input.editingFinished.connect(self._on_changed)
+            input.setObjectName(str(i))  # 设置objectName, 用于区分信号来源
 
             self.inputs.append(input)
             self.inputs_layout.addWidget(input, 1)
@@ -468,28 +483,234 @@ class ArrayTypeItem(QtWidgets.QWidget, ToolItem):
 
     @value.setter
     def value(self, val):
+        if self._value == val:
+            return
         for i in range(self.length):
-            self.inputs[i].setText(str(val[i]))
+            if self._value[i] != val[i]:
+                self._value[i] = val[i]
+                self.inputs[i].setText(str(val[i]))
+        self.sigChanged.emit(self._value)
 
     def _on_changed(self):
-        self._value = [self.type(input.text()) for input in self.inputs]
+        id = int(self.sender().objectName())
+        val = self.type(self.inputs[id].text())
+        if self._value[id] != val:
+            self._value[id] = val
+            self.sigChanged.emit(self._value)
+
+
+class DragValue(QtWidgets.QLineEdit):
+
+    sigValueChanged = QtCore.pyqtSignal(object)
+
+    def __init__(self, value, min_val, max_val, step, decimals=2, format: str=None,
+                 parent=None):
+        super().__init__(parent)
+        self.decimal_format = "%." + str(decimals) + "f"
+        if format is None:
+            self.format = self.decimal_format
+        else:
+            self.format = format
+        self.drag_position = QPoint()  # 记录鼠标按下的位置
+        self.pressed = False
+
+        self._value = None
+        self.min_val = min_val
+        self.max_val = max_val
+        self.step = step
+        self.value = value
+        self._on_press_value = self._value  # 记录鼠标按下时的值
+
+        # 设置验证器
+        double_validator = QtGui.QDoubleValidator()
+        double_validator.setDecimals(decimals)
+        self.setValidator(double_validator)
+
+        self.setAlignment(Qt.AlignCenter)
+        self.setMinimumWidth(20)
+        self.setFocusPolicy(Qt.NoFocus)
+        self.setStyleSheet(
+        """ QLineEdit {background-color: #f7f7f7; border: 1px solid #aaaaaa; border-radius: 3px; }
+            QLineEdit:hover { background-color: #d0eef9; }
+        """)
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, val):
+        _value = min(self.max_val, max(self.min_val, val))
+        if self._value != _value:
+            self._value = _value
+            self.sigValueChanged.emit(self._value)
+        self.setText(self.format % self._value)
+
+    def mouseDoubleClickEvent(self, event):
+        """双击可编辑"""
+        self.setFocus()
+        event.accept()
+
+    def mousePressEvent(self, event):
+        if not self.hasFocus():
+            self._on_press_value = self._value
+            self.pressed = True
+            self.drag_position = event.pos()
+        event.accept()
+
+    def mouseReleaseEvent(self, event):
+        self.pressed = False
+        event.accept()
+
+    def mouseMoveEvent(self, event):
+        """按下并拖动可改变数值"""
+        if self.pressed and not self.hasFocus():
+            scale = 1
+            # 如果按下shift键, 则按照最小步长移动
+            if event.modifiers() == Qt.ShiftModifier:
+                scale = 0.02
+            # value.setter
+            self.value = self._on_press_value + \
+                int((event.pos().x() - self.drag_position.x()) * scale) * self.step
+        event.accept()
+
+    def keyPressEvent(self, event):
+        """ESC或回车退出编辑"""
+        if event.key() == Qt.Key_Escape or event.key() == Qt.Key_Return:
+            self.clearFocus() # 清除焦点
+        else:
+            super().keyPressEvent(event) # 调用父类的方法
+
+    def focusInEvent(self, a0: QFocusEvent) -> None:
+        # 修改文字为只包含数字
+        self.setText(self.decimal_format % self._value)
+        self.setAlignment(Qt.AlignLeft)
+        return super().focusInEvent(a0)
+
+    def focusOutEvent(self, event):
+        """失去焦点时恢复原来的样式"""
+        self.setAlignment(Qt.AlignCenter)
+        super().focusOutEvent(event)
+        # value.setter
+        self.value = float(self.text())
+
+
+class DragValueItem(QtWidgets.QWidget, ToolItem):
+
+        sigChanged = QtCore.pyqtSignal(object)
+
+        def __init__(self, label:str, value, min_val, max_val, step, decimals:int=0,
+                     format: str=None,
+                     callback: Callable=None):
+            super().__init__()
+
+            self.name_label = QtWidgets.QLabel(label, self)
+            self.value_drager = DragValue(value, min_val, max_val, step, decimals, format, self)
+
+            self.box = create_layout(self, True,
+                                    [self.value_drager, self.name_label],
+                                    [5, 2], spacing=10)
+
+            self.value_drager.sigValueChanged.connect(self._on_changed)
+
+            if callback is not None:
+                self.sigChanged.connect(callback)
+
+        def _on_changed(self, val):
+            return self.sigChanged.emit(val)
+
+        @property
+        def value(self):
+            return self.value_drager.value
+
+        @value.setter
+        def value(self, val):
+            self.value_drager.value = val
+
+
+class DragArrayItem(QtWidgets.QWidget, ToolItem):
+
+    sigChanged = QtCore.pyqtSignal(object)
+
+    def __init__(self, label:str, value, min_val, max_val, step, decimals:int=0,
+                    format: Union[str, Tuple[str]]=None, callback: Callable=None, horizontal=True):
+        super().__init__()
+        self.length = len(value)
+
+        self._value = value
+        min_val = self._validate_arg(min_val)
+        max_val = self._validate_arg(max_val)
+        step = self._validate_arg(step)
+        format = self._validate_arg(format)
+
+        self.name_label = QtWidgets.QLabel(label, self)
+
+        self.inputs_frame = QtWidgets.QFrame(self)
+        self.inputs_layout = QtWidgets.QHBoxLayout(self.inputs_frame) if horizontal \
+            else QtWidgets.QVBoxLayout(self.inputs_frame)
+        self.inputs_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.inputs: List[DragValue] = []
+        for i in range(self.length):
+            input = DragValue(value[i], min_val[i], max_val[i], step[i], decimals, format[i], self.inputs_frame)
+            input.sigValueChanged.connect(self._on_changed)
+            input.setObjectName(str(i))  # 设置objectName, 用于区分信号来源
+            self.inputs.append(input)
+            self.inputs_layout.addWidget(input, 1)
+
+        self.box = create_layout(self, True,
+                                 [self.inputs_frame, self.name_label], [5, 2], spacing=10)
+
+        if callback is not None:
+            self.sigChanged.connect(callback)
+
+    def _validate_arg(self, arg) -> List[Number]:
+        if isinstance(arg, (list, tuple)):
+            assert len(arg) == self.length, "arg length must be equal to value length"
+            return arg
+        elif isinstance(arg, (int, float)) or arg is None:
+            return [arg] * self.length
+        else:
+            raise TypeError("arg must be list, tuple, int or float")
+
+    def _on_changed(self, val):
+        id = int(self.sender().objectName())
+        self._value[id] = val
         return self.sigChanged.emit(self._value)
+
+    @property
+    def value(self) -> List[Number]:
+        return self._value
+
+    @value.setter
+    def value(self, val):
+        for i in range(self.length):
+            # 如果值不相等, 会出发 DragValue.sigValueChanged 信号, 进而触发 self.sigChanged 信号
+            # 进而 self._value 的更新在 self._on_changed 中完成
+            self.inputs[i].value = val[i]
 
 
 class ToolBox():
 
-    Boxes: List[ToolWindow] = []
+    Windows: Dict[str, ToolWindow] = {}
     Items: Dict[str, ToolItem] = {}
     ContainerStack: List[ToolContainer] = []
 
     @classmethod
     @contextmanager
-    def window(cls, label="Toolbox", spacing=5):
+    def window(cls, label="Toolbox", parent:QtWidgets=None, spacing=5,
+               pos:Union[Tuple[int], List[int]]=(0, 0)):
         try:
-            container = ToolWindow(label, spacing)
-            cls.Boxes.append(container)
-            cls.ContainerStack.append(container)
-            yield container
+            if parent is not None:
+                parent.show()
+                base_pos = parent.pos()
+            else:
+                base_pos = QPoint(0, 0)
+            pos = base_pos + QPoint(pos[0], pos[1])
+            win = ToolWindow(label, spacing, (pos.x(), pos.y()))
+            cls.Windows[label] = win
+            cls.ContainerStack.append(win)
+            yield win
         finally:
             cls.ContainerStack.pop()
 
@@ -509,7 +730,7 @@ class ToolBox():
 
     @classmethod
     def clean(cls):
-        for box in cls.Boxes:
+        for box in cls.Windows.values():
             box.close()
 
     @classmethod
@@ -520,6 +741,10 @@ class ToolBox():
     @classmethod
     def get_widget(cls, label):
         return cls.Items[label]
+
+    @classmethod
+    def get_window(cls, label):
+        return cls.Windows[label]
 
     # add items
     @classmethod
@@ -537,7 +762,7 @@ class ToolBox():
         return checkbox
 
     @classmethod
-    def add_checklist(cls, label:str, items=["a", "b", "c"], value=0, horizontal=True,
+    def add_checklist(cls, label:str, items=Tuple[str], value=0, horizontal=True,
                       exclusive=True, callback: Callable=None) -> CheckListItem:
         checklist = CheckListItem(items, value, horizontal, exclusive, callback)
         cls.ContainerStack[-1].add_item(checklist)
@@ -567,7 +792,7 @@ class ToolBox():
         cls.ContainerStack[-1].add_item(text)
 
     @classmethod
-    def add_combo(cls, label:str, items=["a", "b", "c"], value=0, callback: Callable=None) -> ComboItem:
+    def add_combo(cls, label:str, items=Tuple[str], value=0, callback: Callable=None) -> ComboItem:
         combo = ComboItem(label, items, value, callback)
         cls.ContainerStack[-1].add_item(combo)
         cls.Items[label] = combo
@@ -600,3 +825,26 @@ class ToolBox():
         cls.ContainerStack[-1].add_item(array_float)
         cls.Items[label] = array_float
         return array_float
+
+    @classmethod
+    def add_drag_value(cls, label:str, value, min_val, max_val, step, decimals=2, format:str=None,
+                     callback: Callable=None) -> DragValueItem:
+        drag_int = DragValueItem(label, value, min_val, max_val, step, decimals, format, callback)
+        cls.ContainerStack[-1].add_item(drag_int)
+        cls.Items[label] = drag_int
+        return drag_int
+
+    @classmethod
+    def add_drag_array(cls, label:str,
+                       value: NumberTuple,
+                       min_val: Union[Number, NumberTuple],
+                       max_val: Union[Number, NumberTuple],
+                       step: Union[Number, NumberTuple],
+                       decimals:int=0,
+                       format: Union[str, Tuple[str]]=None,
+                       callback: Callable=None,
+                       horizontal: bool=True) -> DragArrayItem:
+        drag_array = DragArrayItem(label, value, min_val, max_val, step, decimals, format, callback, horizontal)
+        cls.ContainerStack[-1].add_item(drag_array)
+        cls.Items[label] = drag_array
+        return drag_array
