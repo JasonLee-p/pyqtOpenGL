@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from typing import List, Union, Dict, Callable, Type, Tuple
-from PyQt5.QtCore import Qt, QPoint, QSize
+from PyQt5.QtCore import Qt, QPoint, QSize, QEvent
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtGui import QFocusEvent, QMouseEvent
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton
@@ -70,7 +70,7 @@ class CollapseTitleBar(QtWidgets.QFrame):
 
         self.hbox = create_layout(self, True,
                                   [self.collapse_button, self.label, self.close_button],
-                                  [1, 1, 1])
+                                  [1, 1, 1], content_margins=(5, 0, 0, 0), spacing=5)
 
     def on_click(self):
         self.is_collapsed = not self.is_collapsed
@@ -210,6 +210,7 @@ class ToolWindow(QtWidgets.QWidget, ToolContainer):
             self.size_grip.setVisible(True)
 
     def mousePressEvent(self, event):
+        self.setFocus()  # 设置窗口为焦点, 实现点击窗口任意位置, 取消子组件的焦点的效果
         # 保存鼠标点击位置
         self.movable = False
         if self.title_bar.hbox.geometry().contains(event.pos()):
@@ -556,7 +557,7 @@ class DragValue(QtWidgets.QLineEdit):
             self._on_press_value = self._value
             self.pressed = True
             self.drag_position = event.pos()
-        event.accept()
+        event.ignore()  # 忽略事件, 使父类 ToolWindow 能够接收到事件, 并获取 Focus
 
     def mouseReleaseEvent(self, event):
         self.pressed = False
