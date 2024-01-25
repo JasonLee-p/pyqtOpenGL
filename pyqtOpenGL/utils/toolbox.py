@@ -80,6 +80,12 @@ class CollapseTitleBar(QtWidgets.QFrame):
 
 class ToolItem():
 
+    def set_label(self, label:str):
+        self.__label = label
+
+    def get_label(self) -> str:
+        return self.__label
+
     @property
     def value(self):
         raise NotImplementedError
@@ -239,6 +245,7 @@ class ButtonItem(QPushButton, ToolItem):
 
     def __init__(self, label="Button", value=False, checkable=False, callback: Callable=None):
         super().__init__(label)
+        self.set_label(label)
         self.setMaximumWidth(300)
         if checkable:
             self.setCheckable(True)
@@ -259,6 +266,7 @@ class CheckBoxItem(QtWidgets.QCheckBox, ToolItem):
 
     def __init__(self, label, value=False, callback: Callable=None):
         super().__init__(label, None)
+        self.set_label(label)
         self.setMaximumWidth(300)
         self.setChecked(value)
         if callback is not None:
@@ -277,8 +285,9 @@ class CheckListItem(QtWidgets.QFrame, ToolItem):
     """互斥 checkboxes"""
     sigClicked = QtCore.pyqtSignal(object)
 
-    def __init__(self, items: Tuple[str], value:int=0, horizontal=True, exclusive=True, callback: Callable=None):
+    def __init__(self, label:str, items: Tuple[str], value:int=0, horizontal=True, exclusive=True, callback: Callable=None):
         super().__init__()
+        self.set_label(label)
         # 设置边框颜色和底色
         self.setStyleSheet("QFrame{border:1px solid #aaaaaa; border-radius: 3px; background-color: #ffffff;}")
         self.exclusive = exclusive
@@ -327,18 +336,25 @@ class CheckListItem(QtWidgets.QFrame, ToolItem):
 
 
 class ComboItem(QtWidgets.QWidget, ToolItem):
+
+    sigChanged = QtCore.pyqtSignal(object)
+
     def __init__(self, label:str, items: Tuple[str], value: int=0, callback: Callable=None):
         super().__init__()
+        self.set_label(label)
         self.setMaximumWidth(400)
         self.combo = QtWidgets.QComboBox(self)
-        self.label = QtWidgets.QLabel(label, self)
+        self.name_label = QtWidgets.QLabel(label, self)
         self.combo.addItems(items)
         self.combo.setCurrentIndex(value)
-        self.box = create_layout(self, True, [self.combo, self.label], [5, 2], spacing=10)
+        self.box = create_layout(self, True, [self.combo, self.name_label], [5, 2], spacing=10)
         # 信号/槽
+        self.combo.currentTextChanged.connect(self._on_changed)
         if callback:
-            self.combo.currentTextChanged.connect(callback)
-            # self.combo.currentIndexChanged.connect(callback)
+            self.sigChanged.connect(callback)
+
+    def _on_changed(self):
+        return self.sigChanged.emit(self.value)
 
     @property
     def value(self):
@@ -352,13 +368,13 @@ class ComboItem(QtWidgets.QWidget, ToolItem):
         self.combo.clear()
         self.combo.addItems(items)
 
-
 class TextEditorItem(QtWidgets.QWidget, ToolItem):
 
     sigChanged = QtCore.pyqtSignal(object)
 
     def __init__(self, label:str, value:str, editable=True, callback: Callable=None):
         super().__init__()
+        self.set_label(label)
         self.setMaximumWidth(400)
         self.name_label = QtWidgets.QLabel(label, self)
         self.text_editor = QtWidgets.QLineEdit(value, self)
@@ -388,6 +404,7 @@ class SliderItem(QtWidgets.QWidget, ToolItem):
     def __init__(self, label:str, value, min_val, max_val, step, decimals=0, callback: Callable=None):
         """decimals: 小数位数"""
         super().__init__()
+        self.set_label(label)
         self.step = step
         self.decimals = decimals
         value = max(min_val, min(value, max_val))
@@ -396,7 +413,7 @@ class SliderItem(QtWidgets.QWidget, ToolItem):
         self.min_val = value - l_steps * step
         self.steps = l_steps + r_steps
 
-        self.label = QtWidgets.QLabel(label, self)
+        self.name_label = QtWidgets.QLabel(label, self)
 
         self.slider = QtWidgets.QSlider(Qt.Horizontal, self)
         self.slider.setRange(0, self.steps+1)
@@ -407,7 +424,7 @@ class SliderItem(QtWidgets.QWidget, ToolItem):
         self.spinbox.setDecimals(decimals)
 
         self.box = create_layout(self, True,
-                                 [self.slider, self.spinbox, self.label],
+                                 [self.slider, self.spinbox, self.name_label],
                                  [9, 1, 4], spacing=10)
 
         self.spinbox.setValue(value)
@@ -449,7 +466,8 @@ class ArrayTypeItem(QtWidgets.QWidget, ToolItem):
     def __init__(self, label:str, value:NumberTuple,
                  type:Union[Type[int], Type[float]], editable=True, callback: Callable=None):
         super().__init__()
-        self._value = value
+        self.set_label(label)
+        self._value = list(value)
         self.length = len(value)
         self.type = type
         assert self.length > 0, "Array length must be greater than 0"
@@ -604,6 +622,7 @@ class DragValueItem(QtWidgets.QWidget, ToolItem):
                      format: str=None,
                      callback: Callable=None):
             super().__init__()
+            self.set_label(label)
 
             self.name_label = QtWidgets.QLabel(label, self)
             self.value_drager = DragValue(value, min_val, max_val, step, decimals, format, self)
@@ -637,8 +656,9 @@ class DragArrayItem(QtWidgets.QWidget, ToolItem):
                     format: Union[str, Tuple[str]]=None, callback: Callable=None, horizontal=True):
         super().__init__()
         self.length = len(value)
+        self.set_label(label)
 
-        self._value = value
+        self._value = list(value)
         min_val = self._validate_arg(min_val)
         max_val = self._validate_arg(max_val)
         step = self._validate_arg(step)
@@ -700,7 +720,8 @@ class ToolBox():
     @classmethod
     @contextmanager
     def window(cls, label="Toolbox", parent:QtWidgets=None, spacing=5,
-               pos:Union[Tuple[int], List[int]]=(0, 0)):
+               pos:Union[Tuple[int], List[int]]=(0, 0),
+               size:Union[Tuple[int], List[int]]=None):
         try:
             if parent is not None:
                 parent.show()
@@ -711,6 +732,8 @@ class ToolBox():
             win = ToolWindow(label, spacing, (pos.x(), pos.y()))
             cls.Windows[label] = win
             cls.ContainerStack.append(win)
+            if size is not None:
+                win.resize(size[0], size[1])
             yield win
         finally:
             cls.ContainerStack.pop()
@@ -735,6 +758,14 @@ class ToolBox():
             box.close()
 
     @classmethod
+    def _add_item(cls, label:str, item: ToolItem):
+        # check if label exists
+        if label in cls.Items.keys():
+            raise KeyError("label already exists")
+        cls.ContainerStack[-1].add_item(item)
+        cls.Items[label] = item
+
+    @classmethod
     def get_value(cls, label):
         """获取某个控件的值"""
         return cls.Items[label].value
@@ -751,23 +782,20 @@ class ToolBox():
     @classmethod
     def add_button(cls, label:str, value=False, checkable=False, callback: Callable=None) -> ButtonItem:
         button = ButtonItem(label, value, checkable, callback)
-        cls.ContainerStack[-1].add_item(button)
-        cls.Items[label] = button
+        cls._add_item(label, button)
         return button
 
     @classmethod
     def add_checkbox(cls, label:str, value=False, callback: Callable=None) -> CheckBoxItem:
         checkbox = CheckBoxItem(label, value, callback)
-        cls.ContainerStack[-1].add_item(checkbox)
-        cls.Items[label] = checkbox
+        cls._add_item(label, checkbox)
         return checkbox
 
     @classmethod
     def add_checklist(cls, label:str, items=Tuple[str], value=0, horizontal=True,
                       exclusive=True, callback: Callable=None) -> CheckListItem:
-        checklist = CheckListItem(items, value, horizontal, exclusive, callback)
-        cls.ContainerStack[-1].add_item(checklist)
-        cls.Items[label] = checklist
+        checklist = CheckListItem(label, items, value, horizontal, exclusive, callback)
+        cls._add_item(label, checklist)
         return checklist
 
     @classmethod
@@ -795,44 +823,38 @@ class ToolBox():
     @classmethod
     def add_combo(cls, label:str, items=Tuple[str], value=0, callback: Callable=None) -> ComboItem:
         combo = ComboItem(label, items, value, callback)
-        cls.ContainerStack[-1].add_item(combo)
-        cls.Items[label] = combo
+        cls._add_item(label, combo)
         return combo
 
     @classmethod
     def add_text_editor(cls, label:str, value:str="", editable=True, callback: Callable=None) -> TextEditorItem:
         text = TextEditorItem(label, value, editable, callback)
-        cls.ContainerStack[-1].add_item(text)
-        cls.Items[label] = text
+        cls._add_item(label, text)
         return text
 
     @classmethod
     def add_slider(cls, label:str, value, min_val, max_val, step, decimals:int=0, callback: Callable=None) -> SliderItem:
         slider = SliderItem(label, value, min_val, max_val, step, decimals, callback)
-        cls.ContainerStack[-1].add_item(slider)
-        cls.Items[label] = slider
+        cls._add_item(label, slider)
         return slider
 
     @classmethod
     def add_array_int(cls, label:str, value:List[int], editable=True, callback: Callable=None) -> ArrayTypeItem:
         array_int = ArrayTypeItem(label, value, int, editable, callback)
-        cls.ContainerStack[-1].add_item(array_int)
-        cls.Items[label] = array_int
+        cls._add_item(label, array_int)
         return array_int
 
     @classmethod
     def add_array_float(cls, label:str, value:List[float], editable=True, callback: Callable=None) -> ArrayTypeItem:
         array_float = ArrayTypeItem(label, value, float, editable, callback)
-        cls.ContainerStack[-1].add_item(array_float)
-        cls.Items[label] = array_float
+        cls._add_item(label, array_float)
         return array_float
 
     @classmethod
     def add_drag_value(cls, label:str, value, min_val, max_val, step, decimals=2, format:str=None,
                      callback: Callable=None) -> DragValueItem:
         drag_int = DragValueItem(label, value, min_val, max_val, step, decimals, format, callback)
-        cls.ContainerStack[-1].add_item(drag_int)
-        cls.Items[label] = drag_int
+        cls._add_item(label, drag_int)
         return drag_int
 
     @classmethod
@@ -846,6 +868,5 @@ class ToolBox():
                        callback: Callable=None,
                        horizontal: bool=True) -> DragArrayItem:
         drag_array = DragArrayItem(label, value, min_val, max_val, step, decimals, format, callback, horizontal)
-        cls.ContainerStack[-1].add_item(drag_array)
-        cls.Items[label] = drag_array
+        cls._add_item(label, drag_array)
         return drag_array

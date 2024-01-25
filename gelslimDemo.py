@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from time import time
 from pyqtOpenGL.items import *
-from pyqtOpenGL import GLViewWidget
+from pyqtOpenGL import GLViewWidget, tb
 from pyqtOpenGL.items.GLGelSlimItem import GLGelSimItem
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
@@ -52,8 +52,19 @@ class GLView(GLViewWidget):
 
         self.t0 = time()
 
+        with tb.window("control", self, 10, size=(300, 200)):
+            default_color = (0.53, 0.57, 0.75, 1.0)
+            tb.add_drag_array("RGBA", value=default_color, min_val=0, max_val=1, step=0.01, decimals=2,
+                              horizontal=False, format=["R %.2f", "G %.2f", "B %.2f", "A %.2f"],
+                              callback=self.on_color_changed)
+            tb.add_drag_value("Shininess", value=10, min_val=1, max_val=300, step=1, decimals=0,
+                              callback=self.on_color_changed)
+            tb.add_separator()
+            tb.add_checkbox("light move", value=False)
+            tb.add_checkbox("random surface", value=False)
+
     def onTimeout(self):
-        if self.flag:
+        if tb.get_value("random surface") :
             z = np.random.uniform(-2, 2, (155,205))
             cv2.GaussianBlur(z, (5,5), 0, dst=z)
             z[[0,1,2,-3,-2,-1], :] = 0.0
@@ -62,60 +73,26 @@ class GLView(GLViewWidget):
         else:
             self.model.setDepth(zmap=self.zmap)
 
-        if self.light_move :
+        if tb.get_value("light move") :
             self.light.rotate(0, 1, 0, 1)
             self.light1.rotate(1, 1, 0, -2)
             self.light2.rotate(0.5, 1., 0.6, 1.5)
         self.update()
 
-    def keyPressEvent(self, a0) -> None:
-        """按键处理"""
+    def on_color_changed(self, value):
         material = self.model.gelslim_base.getMaterial(0)
-        if a0.key() == Qt.Key.Key_Escape:
-            self.close()
-        # 视频快捷键
-        if a0.text() in ['a', 'A']:
-            material.opacity -= 0.05
-            self.update()
-        elif a0.text() in ['d', 'D']:
-            material.opacity += 0.05
-            self.update()
-        elif a0.text() == '1':  #
-            material.diffuse[0] -= 0.02
-            self.update()
-        elif a0.text() == '2':
-            material.diffuse[0] += 0.02
-            self.update()
-        elif a0.text() == '3':  #
-            material.diffuse[1] -= 0.02
-            self.update()
-        elif a0.text() == '4':
-            material.diffuse[1] += 0.02
-            self.update()
-        elif a0.text() == '5':  #
-            material.diffuse[2] -= 0.02
-            self.update()
-        elif a0.text() == '6':
-            material.diffuse[2] += 0.02
-            self.update()
-        elif a0.text() == '9':  #
-            self.light_move = True
-            self.update()
-        elif a0.text() == '0':
-            self.light_move = False
-            self.update()
-        elif a0.text() in ['t', 'T']:  #
-            self.flag=True
-            self.update()
-        elif a0.text() in ['y', 'Y']:
-            self.flag=False
-            self.update()
-        elif a0.text() in ['q', 'Q']:  #
-            material.shininess -= 10
-            self.update()
-        elif a0.text() in ['e', 'E']:
-            material.shininess += 10
-            self.update()
+        label = self.sender().get_label()
+        if label == 'RGBA':
+            material.diffuse = value[:3]
+            material.opacity = value[3]
+        else:
+            material.shininess = value
+        self.update()
+
+    def closeEvent(self, a0) -> None:
+        tb.clean()
+        return super().closeEvent(a0)
+
 
 if __name__ == '__main__':
     # pg.exec()

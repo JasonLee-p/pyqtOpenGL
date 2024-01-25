@@ -64,8 +64,8 @@ class GLView(GLViewWidget):
             tb.add_text_editor("input text", callback=self.log)
             tb.add_combo("combo", ("a", "b", "c"), 1, callback=self.log)
             tb.add_checklist(label="checklist", items=("a", "b", "c"), callback=self.log, exclusive=True)
-            tb.add_array_int("array_int", [12, 13,12.0], callback=self.log)
-            tb.add_array_float("array_float", [12, 13,12.0,1], callback=self.log)
+            tb.add_array_int("array_int", (12, 13, 12), callback=self.log)
+            tb.add_array_float("array_float", [12,13,12.0,1], callback=self.log)
 
             tb.add_drag_value("drag_int", 10, 0, 100, 1, format="%d%%", callback=self.log)
             tb.add_drag_array("drag_array", [10, 10, 10], 0, 100, 1, 0,
@@ -96,8 +96,7 @@ class GLView(GLViewWidget):
         self.sphere.setTransform(Matrix4x4.fromTranslation(*pos) @ Matrix4x4.fromEulerAngles(rotx, roty, rotz))
 
     def log(self, value):
-        print(self.sender())
-        print(value)
+        print("[%s]: %s" % (self.sender().get_label(), value))
 
     def closeEvent(self, a0: QCloseEvent) -> None:
         tb.clean()
