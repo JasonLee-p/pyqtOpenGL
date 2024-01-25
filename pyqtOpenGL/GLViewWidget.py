@@ -33,6 +33,11 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         self.items : List[GLGraphicsItem] = []
         self.lights: Set[PointLight] = set()
 
+        # 设置多重采样抗锯齿
+        format = QtGui.QSurfaceFormat()
+        format.setSamples(4)
+        self.setFormat(format)
+
     def get_proj_view_matrix(self):
         view = self.camera.get_view_matrix()
         proj = self.camera.get_projection_matrix(

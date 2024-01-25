@@ -72,7 +72,7 @@ class GLView(GLViewWidget):
                               format=["x %d", "y %d", "z %d"], callback=self.log)
 
             tb.add_spacer(size=20)
-            tb.add_text("There is a spacer")
+            tb.add_text("This is a spacer")
             tb.add_separator(horizontal=True)
             tb.add_spacer(size=20)
 
