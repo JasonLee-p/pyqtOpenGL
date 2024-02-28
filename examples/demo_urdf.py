@@ -4,7 +4,7 @@ from pyqtOpenGL import GLViewWidget
 from pyqtOpenGL.items  import *
 from pyqtOpenGL.transform3d import *
 from pyqtOpenGL.items.GLURDFItem import GLURDFItem
-from pyqtOpenGL import tb
+from pyqtOpenGL import tb, Matrix4x4
 
 class GLView(GLViewWidget):
     def __init__(self, parent=None, **kwargs):
@@ -35,6 +35,16 @@ class GLView(GLViewWidget):
             "./pyqtOpenGL/items/resources/objects/panda/panda_with_gelslim.urdf",
             lights=[self.light, self.light2]
         )
+        # self.model.set_link("panda_hand", False, False)
+        # self.model.set_link("panda_leftfinger", False, False)
+
+        # self.model1 = GLModelItem(
+        #     "./pyqtOpenGL/items/resources/objects/panda/gelslim.dae",
+        #     lights=[self.light, self.light2],
+        # )
+        # self.model1.translate(1, 1, 0.1)
+        # self.addItem(self.model1)
+
         self.model.rotate(-90, 1, 0, 0)
         self.model.print_links()
         self.model.print_joints()
