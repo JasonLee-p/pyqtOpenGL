@@ -20,7 +20,6 @@ class GLModelItem(GLGraphicsItem, LightMixin):
         self,
         path,
         lights = list(),
-        gamma=False,
         glOptions='translucent',
         texcoords_scale=1,
         parentItem=None,
@@ -28,7 +27,6 @@ class GLModelItem(GLGraphicsItem, LightMixin):
         super().__init__(parentItem=parentItem)
         self._path = path
         self._directory = Path(path).parent
-        self.gamma_correction = gamma
         self.setGLOptions(glOptions)
         # model
         self.meshes: List[Mesh] = list()
@@ -63,7 +61,10 @@ class GLModelItem(GLGraphicsItem, LightMixin):
         start_time = time.time()
 
         post_process = (assimp.Process_Triangulate |
-                        assimp.Process_FlipUVs)
+                        assimp.Process_FlipUVs|
+                        assimp.Process_GenNormals|
+                        assimp.Process_PreTransformVertices
+                        )
                         # assimp.Process_CalcTangentSpace 计算法线空间
 
         scene = assimp.ImportFile(str(path), post_process)
@@ -75,7 +76,7 @@ class GLModelItem(GLGraphicsItem, LightMixin):
                 Mesh(
                     m.vertices,
                     m.indices,
-                    m.texcoords[0],
+                    m.texcoords[0] if len(m.texcoords) > 0 else None,
                     m.normals,
                     scene.materials[m.material_index],
                     directory=self._directory,

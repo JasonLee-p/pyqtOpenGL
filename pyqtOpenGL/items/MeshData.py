@@ -100,6 +100,8 @@ class Material():
         if opacity is not None:
             self.opacity = opacity
 
+    def __repr__(self) -> str:
+        return f"Material(ambient={self.ambient}, diffuse={self.diffuse}, specular={self.specular}, shininess={self.shininess}, opacity={self.opacity})"
 
 class Mesh():
 
@@ -118,7 +120,11 @@ class Mesh():
         self._vertexes = np.array(vertexes, dtype=np.float32)
 
         if indices is not None:
-            self._indices = np.array(indices, dtype=np.uint32)
+            try:
+                self._indices = np.array(indices, dtype=np.uint32)
+            except: # assimp 的 indices 有时出错, 例如 [(0, 1), (2, 3), (4, 5, 6), (7, 8, 9) ...]
+                indices = [item for item in indices if len(item)==3]
+                self._indices = np.array(indices, dtype=np.uint32)
         else:
             self._indices = None
 
@@ -136,7 +142,8 @@ class Mesh():
             self._material = Material(material, directory)
         elif isinstance(material, Material):
             self._material = material
-
+        elif material is None:
+            self._material = Material()
         self._usage = usage
 
     def initializeGL(self):

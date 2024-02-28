@@ -173,6 +173,7 @@ struct PointLight {
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
+    bool directional;
 };
 #define MAX_POINT_LIGHTS 10
 uniform PointLight pointLight[MAX_POINT_LIGHTS];
@@ -183,16 +184,25 @@ float shininess = 32.0;
 vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewPos)
 {
     vec3 viewDir = normalize(viewPos - fragPos);
-    vec3 lightDir = normalize(light.position - fragPos);
-    vec3 halfwayDir = normalize(lightDir + viewDir);
+    vec3 lightDir = vec3(0);
+    float attenuation = 1.0;
+    float distance = 0.0;
+    if (light.directional)
+        lightDir = normalize(light.position);
+    else
+        lightDir = normalize(light.position - fragPos);
+        distance = length(light.position - fragPos);
+        attenuation = 1.0 / (light.constant + light.linear * distance +
+                     light.quadratic * (distance * distance));
+
+    //vec3 halfwayDir = normalize(lightDir + viewDir);
+    vec3 reflectDir = reflect(-lightDir, normal);
     // 漫反射着色
-    float diff = max(dot(normal, lightDir), 0.0);
+    float diff = abs(dot(normal, lightDir));
     // 镜面光着色
-    float spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
-    // 衰减
-    float distance    = length(light.position - fragPos);
-    float attenuation = 1.0 / (light.constant + light.linear * distance +
-                 light.quadratic * (distance * distance));
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+    //float spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
+
     // 合并结果
     vec3 ambient  = light.ambient  * oColor * 0.4;
     vec3 diffuse  = light.diffuse  * diff * oColor * 0.6;

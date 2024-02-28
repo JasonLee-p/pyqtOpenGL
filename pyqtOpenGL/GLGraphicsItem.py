@@ -91,6 +91,13 @@ class GLGraphicsItem(QtCore.QObject):
         """Return a list of this item's children in the scenegraph hierarchy."""
         return self.__children
 
+    def recursiveChildItems(self):
+        """Return a list of this item's children and their children, etc."""
+        items = self.__children
+        for child in self.__children:
+            items.extend(child.recursiveChildItems())
+        return items
+
     def setGLOptions(self, opts):
         """
         Set the OpenGL state options to use immediately before drawing this item.
@@ -187,9 +194,12 @@ class GLGraphicsItem(QtCore.QObject):
             tr = p.transform() * tr
         return tr
 
-    def setVisible(self, vis):
+    def setVisible(self, vis, recursive=False):
         """Set the visibility of this item."""
         self.__visible = vis
+        if recursive:
+            for child in self.recursiveChildItems():
+                child.setVisible(vis, recursive=False)
         self.update()
 
     def visible(self):
@@ -231,11 +241,10 @@ class GLGraphicsItem(QtCore.QObject):
 
     def drawItemTree(self, model_matrix=Matrix4x4()):
         model_matrix = model_matrix * self.transform()
-        if not self.visible():
-            return
-
         self.initialize()
-        self.paint(model_matrix)
+
+        if self.visible():
+            self.paint(model_matrix)
 
         for child in self.__children:
             child.drawItemTree(model_matrix)

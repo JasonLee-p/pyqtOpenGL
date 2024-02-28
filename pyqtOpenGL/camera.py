@@ -79,7 +79,7 @@ class Camera:
         if self.pos.z < 0.1:
             self.pos.z = 0.1
 
-    def set_params(self, position=None, yaw=None, pitch=None, roll=0, fov=None):
+    def set_params(self, position=None, pitch=None, yaw=None, roll=0, fov=None):
         if position is not None:
             self.pos = Vector3(position)
         if yaw is not None or pitch is not None:

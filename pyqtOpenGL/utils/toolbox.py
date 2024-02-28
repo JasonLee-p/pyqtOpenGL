@@ -4,6 +4,7 @@ from PyQt5.QtCore import Qt, QPoint, QSize, QEvent
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtGui import QFocusEvent, QMouseEvent
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton
+import numpy as np
 
 Number = Union[int, float]
 NumberTuple = Tuple[Number]
@@ -686,18 +687,19 @@ class DragArrayItem(QtWidgets.QWidget, ToolItem):
             self.sigChanged.connect(callback)
 
     def _validate_arg(self, arg) -> List[Number]:
-        if isinstance(arg, (list, tuple)):
+        if isinstance(arg, (list, tuple, np.ndarray)):
             assert len(arg) == self.length, "arg length must be equal to value length"
             return arg
         elif isinstance(arg, (int, float)) or arg is None:
             return [arg] * self.length
         else:
-            raise TypeError("arg must be list, tuple, int or float")
+            raise TypeError(f"arg must be list, tuple, int or float, but got {type(arg)}")
 
     def _on_changed(self, val):
         id = int(self.sender().objectName())
         self._value[id] = val
-        return self.sigChanged.emit(self._value)
+        # return self.sigChanged.emit(self._value)
+        return self.sigChanged.emit((id, val))
 
     @property
     def value(self) -> List[Number]:
@@ -706,7 +708,7 @@ class DragArrayItem(QtWidgets.QWidget, ToolItem):
     @value.setter
     def value(self, val):
         for i in range(self.length):
-            # 如果值不相等, 会出发 DragValue.sigValueChanged 信号, 进而触发 self.sigChanged 信号
+            # 如果值不相等, 会触发 DragValue.sigValueChanged 信号, 进而触发 self.sigChanged 信号
             # 进而 self._value 的更新在 self._on_changed 中完成
             self.inputs[i].value = val[i]
 

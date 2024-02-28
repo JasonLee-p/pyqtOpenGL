@@ -25,7 +25,8 @@ class GLView(GLViewWidget):
         self.grid = GLGridItem(
             size=(200, 200), spacing=(10, 10),
             lights=[
-                PointLight(pos=[3, 5, 10], ambient=(1.5, 1.5, 1.5), diffuse=(1,1, 1), visible=False)
+                PointLight(pos=[3, 5, 10], ambient=(0.6, 0.6, 0.6), diffuse=(1, 1, 1),
+                           visible=False, directional=True),
             ],
         )
         self.grid.rotate(90, 1, 0, 0)
@@ -79,14 +80,15 @@ class GLView(GLViewWidget):
             self.light2.rotate(0.5, 1., 0.6, 1.5)
         self.update()
 
-    def on_color_changed(self, value):
+    def on_color_changed(self):
         material = self.model.gelslim_base.getMaterial(0)
         label = self.sender().get_label()
         if label == 'RGBA':
+            value = tb.get_value("RGBA")
             material.diffuse = value[:3]
             material.opacity = value[3]
         else:
-            material.shininess = value
+            material.shininess = tb.get_value("Shininess")
         self.update()
 
     def closeEvent(self, a0) -> None:

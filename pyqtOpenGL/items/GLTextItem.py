@@ -1,3 +1,4 @@
+import sys
 from ..GLGraphicsItem import GLGraphicsItem
 from ..transform3d import Matrix4x4
 from .shader import Shader
@@ -19,7 +20,7 @@ class GLTextItem(GLGraphicsItem):
         self,
         text: str=None,
         pos = [0, 0, -10],
-        font = "Deng.ttf",  # "times.ttf", "msyh.ttc", "Deng.ttf"
+        font = None,  # "times.ttf", "msyh.ttc", "Deng.ttf"
         color = (255, 255, 255, 255),
         fontsize = 40,
         fixed = True,  # 是否固定在视图上, if True, pos is in viewport, else in world
@@ -84,6 +85,12 @@ class GLTextItem(GLGraphicsItem):
         if font is not None:
             self._font = font
             self._tex_update_flag = True
+        else:
+            if sys.platform == "win32":
+                self._font = "Deng.ttf"
+            elif sys.platform in ("linux", "linux2"):
+                self._font = "/usr/share/fonts/truetype/noto/NotoMono-Regular.ttf"
+
         if fontsize is not None:
             self._fontsize = fontsize
             self._tex_update_flag = True

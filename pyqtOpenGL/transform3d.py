@@ -309,7 +309,7 @@ class Vector3():
         return 3
 
     def __repr__(self):
-        return f"Vector3({self.x}, {self.y}, {self.z})"
+        return f"Vec3({self.x:.3g}, {self.y:.3g}, {self.z:.3g})"
 
     def __sub__(self, other):
         return Vector3(self._data - other._data)
