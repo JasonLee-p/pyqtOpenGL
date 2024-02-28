@@ -75,11 +75,12 @@ class GLLinkItem(GLGraphicsItem):
 
     def set_data(
         self,
-        axis_visiable: bool = True,
-        visual_visiable: bool = True,
+        axis_visiable: bool = None,
+        visual_visiable: bool = None,
     ):
-        self.axis.setVisible(axis_visiable)
-        if self.visual_model is not None:
+        if axis_visiable is not None:
+            self.axis.setVisible(axis_visiable)
+        if visual_visiable is not None and self.visual_model is not None:
             self.visual_model.setVisible(visual_visiable)
 
 
@@ -199,6 +200,14 @@ class GLURDFItem(GLGraphicsItem):
 
     def get_joints_limit(self)->np.ndarray:
         return np.array([joint.limit for joint in self.joints.values()])
+
+    def get_links_name(self)->List[str]:
+        return list(self.links.keys())
+
+    def set_link(self, name: Union[int, str], **kwargs): # axis_visiable, visual_visiable
+        if isinstance(name, int):
+            name = list(self.links.keys())[name]
+        self.links[name].set_data(**kwargs)
 
     def print_links(self) -> str:
         """dfs print"""

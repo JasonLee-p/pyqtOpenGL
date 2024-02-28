@@ -71,6 +71,7 @@ class GLModelItem(GLGraphicsItem, LightMixin):
         if not scene:
             raise ValueError("ERROR:: Assimp model failed to load, {}".format(path))
 
+        faces = 0
         for m in scene.meshes:
             self.meshes.append(
                 Mesh(
@@ -83,9 +84,9 @@ class GLModelItem(GLGraphicsItem, LightMixin):
                     texcoords_scale=texcoords_scale,
                 )
             )
+            faces += len(m.indices)
         self._order = list(range(len(self.meshes)))
-        print("Took {}s to load model {}".format(
-                round(time.time()-start_time, 3), path))
+        print(f"Took {round(time.time()-start_time, 3)}s to load model {path} ({faces})")
 
     def setPaintOrder(self, order: list):
         """设置绘制顺序, order为mesh的索引列表"""

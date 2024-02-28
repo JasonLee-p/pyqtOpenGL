@@ -286,12 +286,15 @@ class CheckListItem(QtWidgets.QFrame, ToolItem):
     """互斥 checkboxes"""
     sigClicked = QtCore.pyqtSignal(object)
 
-    def __init__(self, label:str, items: Tuple[str], value:int=0, horizontal=True, exclusive=True, callback: Callable=None):
+    def __init__(self, label:str, items: Tuple[str], value:Union[int, List[bool]]=None,
+                 horizontal=True, exclusive=True, callback: Callable=None):
+        """value=None: 全部不选中, value=int: 选中第value个, value=List[bool]: 选中对应的checkbox"""
         super().__init__()
         self.set_label(label)
         # 设置边框颜色和底色
         self.setStyleSheet("QFrame{border:1px solid #aaaaaa; border-radius: 3px; background-color: #ffffff;}")
         self.exclusive = exclusive
+        self._items = tuple(items)
         if horizontal:
             self.box = QtWidgets.QHBoxLayout(self)
         else:
@@ -307,7 +310,8 @@ class CheckListItem(QtWidgets.QFrame, ToolItem):
         # 互斥
         self.box_group.setExclusive(exclusive)
 
-        self.box_group.buttonClicked.connect(self._on_click)
+        # 当状态发生变化时, 发射信号
+        self.box_group.idToggled.connect(self._on_toggled)
         if callback is not None:
             self.sigClicked.connect(callback)
 
@@ -325,15 +329,22 @@ class CheckListItem(QtWidgets.QFrame, ToolItem):
             return ret
 
     @value.setter
-    def value(self, val: int):
-        self.box_group.button(val).setChecked(True)
+    def value(self, val: Union[int, List[bool]]):
+        if val is None:
+            return
+        elif isinstance(val, int):
+            self.box_group.button(val).setChecked(True)
+        else:
+            for v, button in zip(val, self.box_group.buttons()):
+                button.setChecked(v)
 
     @property
-    def checked_name(self):
-        return self.box_group.checkedButton().text()
+    def items(self):
+        return self._items
 
-    def _on_click(self):
-        return self.sigClicked.emit(self.value)
+    def _on_toggled(self, button_id):
+        button = self.box_group.button(button_id)
+        return self.sigClicked.emit((button.text(), button.isChecked()))
 
 
 class ComboItem(QtWidgets.QWidget, ToolItem):
@@ -653,7 +664,7 @@ class DragArrayItem(QtWidgets.QWidget, ToolItem):
 
     sigChanged = QtCore.pyqtSignal(object)
 
-    def __init__(self, label:str, value, min_val, max_val, step, decimals:int=0,
+    def __init__(self, label:str, value, min_val, max_val, step, decimals,
                     format: Union[str, Tuple[str]]=None, callback: Callable=None, horizontal=True):
         super().__init__()
         self.length = len(value)
@@ -663,6 +674,7 @@ class DragArrayItem(QtWidgets.QWidget, ToolItem):
         min_val = self._validate_arg(min_val)
         max_val = self._validate_arg(max_val)
         step = self._validate_arg(step)
+        decimals = self._validate_arg(decimals)
         format = self._validate_arg(format)
 
         self.name_label = QtWidgets.QLabel(label, self)
@@ -674,7 +686,7 @@ class DragArrayItem(QtWidgets.QWidget, ToolItem):
 
         self.inputs: List[DragValue] = []
         for i in range(self.length):
-            input = DragValue(value[i], min_val[i], max_val[i], step[i], decimals, format[i], self.inputs_frame)
+            input = DragValue(value[i], min_val[i], max_val[i], step[i], decimals[i], format[i], self.inputs_frame)
             input.sigValueChanged.connect(self._on_changed)
             input.setObjectName(str(i))  # 设置objectName, 用于区分信号来源
             self.inputs.append(input)
@@ -794,7 +806,7 @@ class ToolBox():
         return checkbox
 
     @classmethod
-    def add_checklist(cls, label:str, items=Tuple[str], value=0, horizontal=True,
+    def add_checklist(cls, label:str, items=Tuple[str], value=None, horizontal=True,
                       exclusive=True, callback: Callable=None) -> CheckListItem:
         checklist = CheckListItem(label, items, value, horizontal, exclusive, callback)
         cls._add_item(label, checklist)
@@ -865,7 +877,7 @@ class ToolBox():
                        min_val: Union[Number, NumberTuple],
                        max_val: Union[Number, NumberTuple],
                        step: Union[Number, NumberTuple],
-                       decimals:int=0,
+                       decimals: Union[int, Tuple[int]]=0,
                        format: Union[str, Tuple[str]]=None,
                        callback: Callable=None,
                        horizontal: bool=True) -> DragArrayItem:

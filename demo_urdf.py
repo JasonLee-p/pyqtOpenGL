@@ -9,8 +9,8 @@ from pyqtOpenGL import tb
 class GLView(GLViewWidget):
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent=parent, **kwargs)
-        self.camera.set_params((0.09, 3.55, 23.83), 17.95, 0.13, 0.11)
-        self.ax = GLAxisItem(size=(8, 8, 8), width=4)
+        self.camera.set_params((-0.01, 0.38, 3.94), 17.95, 0.03, -0.23)
+        self.ax = GLAxisItem(size=(2, 2, 2), width=3, tip_size=0.2)
 
         # -- lights
         self.light = PointLight(pos=[0, 15, 0],
@@ -27,16 +27,14 @@ class GLView(GLViewWidget):
                                directional=True)
         # -- grid
         self.grid = GLGridItem(
-            size=(50, 50), spacing=(2.5, 2.5), lineWidth=1,
+            size=(5, 5), spacing=(0.25, 0.25), lineWidth=1,
             lights=[self.light]
         )
 
         self.model = GLURDFItem(
-            "./pyqtOpenGL/items/resources/objects/panda/panda.urdf",
-            lights=[self.light, self.light2],
+            "./pyqtOpenGL/items/resources/objects/panda/panda_with_gelslim.urdf",
+            lights=[self.light, self.light2]
         )
-
-        self.model.scale(10, 10, 10)
         self.model.rotate(-90, 1, 0, 0)
         self.model.print_links()
         self.model.print_joints()
@@ -54,23 +52,31 @@ class GLView(GLViewWidget):
         j_value = self.model.get_joints()
         j_name = self.model.get_joints_name()
         j_limits = self.model.get_joints_limit()
+        links_name = self.model.get_links_name()
+
         with tb.window("control", self, 10, size=(400, 300)):
             tb.add_drag_array(
                 "joints",
                 value = j_value,
-                min_val = j_limits[:, 0],
-                max_val = j_limits[:, 1],
-                step=0.01, decimals=2, horizontal=False,
-                format=[name+": %.2f" for name in j_name],
-                callback=self.on_changed
+                min_val = j_limits[:, 0], max_val = j_limits[:, 1],
+                step=[0.01]*7 + [0.001, 0.001], decimals=[2]*7+[3,3],
+                format=[name+": %.3f" for name in j_name],
+                callback=self.on_changed, horizontal=False
             )
+            tb.add_text("axis_visible")
+            tb.add_checklist("axis_visible", items=links_name, callback=self.on_changed,
+                             exclusive=False, horizontal=False, value=None)
 
     def onTimeout(self):
         self.update()
 
     def on_changed(self, data):
-        id, val = data
-        self.model.set_joint(id, val)
+        tag, val = data
+        label = self.sender().get_label()
+        if label == "joints":
+            self.model.set_joint(tag, val)
+        elif label == "axis_visible":
+            self.model.set_link(tag, axis_visiable=val)
 
     def closeEvent(self, a0) -> None:
         tb.clean()
