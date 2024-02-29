@@ -66,19 +66,29 @@ class GLModelItem(GLGraphicsItem, LightMixin):
                         assimp.Process_PreTransformVertices
                         )
                         # assimp.Process_CalcTangentSpace 计算法线空间
-
         scene = assimp.ImportFile(str(path), post_process)
         if not scene:
             raise ValueError("ERROR:: Assimp model failed to load, {}".format(path))
 
         faces = 0
+        is_dae = Path(path).suffix == ".dae"
         for m in scene.meshes:
+
+            # 若模型是 dae 文件, 且其中 <up_axis>Z_UP</up_axis>, 则需要将原始坐标绕 x 轴旋转 90 度
+            verts = np.array(m.vertices, dtype=np.float32).reshape(-1, 3)
+            norms = np.array(m.normals, dtype=np.float32).reshape(-1, 3)
+            if is_dae: # x, y, z -> x, -z, y
+                verts[:, 2] = -verts[:, 2]
+                verts[:, [1, 2]] = verts[:, [2, 1]]
+                norms[:, 2] = -norms[:, 2]
+                norms[:, [1, 2]] = norms[:, [2, 1]]
+
             self.meshes.append(
                 Mesh(
-                    m.vertices,
+                    verts,
                     m.indices,
                     m.texcoords[0] if len(m.texcoords) > 0 else None,
-                    m.normals,
+                    norms,
                     scene.materials[m.material_index],
                     directory=self._directory,
                     texcoords_scale=texcoords_scale,

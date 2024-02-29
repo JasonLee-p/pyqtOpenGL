@@ -1,14 +1,12 @@
 import numpy as np
 from PyQt5 import QtCore, QtGui, QtWidgets
-from pyqtOpenGL import GLViewWidget
-from pyqtOpenGL.items  import *
-from pyqtOpenGL.transform3d import *
-from pyqtOpenGL.items.GLURDFItem import GLURDFItem
-from pyqtOpenGL import tb, Matrix4x4
+from pyqtOpenGL.items import *
+from pyqtOpenGL import GLViewWidget, tb, Matrix4x4
 
 class GLView(GLViewWidget):
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent=parent, **kwargs)
+        self.resize(1200, 900)
         self.camera.set_params((-0.01, 0.38, 3.94), 17.95, 0.03, -0.23)
         self.ax = GLAxisItem(size=(2, 2, 2), width=3, tip_size=0.2)
 
@@ -35,16 +33,6 @@ class GLView(GLViewWidget):
             "./pyqtOpenGL/items/resources/objects/panda/panda_with_gelslim.urdf",
             lights=[self.light, self.light2]
         )
-        # self.model.set_link("panda_hand", False, False)
-        # self.model.set_link("panda_leftfinger", False, False)
-
-        # self.model1 = GLModelItem(
-        #     "./pyqtOpenGL/items/resources/objects/panda/gelslim.dae",
-        #     lights=[self.light, self.light2],
-        # )
-        # self.model1.translate(1, 1, 0.1)
-        # self.addItem(self.model1)
-
         self.model.rotate(-90, 1, 0, 0)
         self.model.print_links()
         self.model.print_joints()
@@ -59,12 +47,12 @@ class GLView(GLViewWidget):
         timer.start(20)
 
         # tool_box
-        j_value = self.model.get_joints()
-        j_name = self.model.get_joints_name()
-        j_limits = self.model.get_joints_limit()
+        j_value = self.model.get_joints_attr("value")
+        j_name = self.model.get_joints_attr("name")
+        j_limits = np.array(self.model.get_joints_attr("limit"))
         links_name = self.model.get_links_name()
 
-        with tb.window("control", self, 10, size=(400, 300)):
+        with tb.window("control", self, 10, size=(400, 300), pos=(-400, 0)):
             tb.add_drag_array(
                 "joints",
                 value = j_value,

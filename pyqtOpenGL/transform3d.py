@@ -1,7 +1,7 @@
 from math import acos, degrees
 import numpy as np
 import numpy as np
-from typing import Any, Union
+from typing import Any, Union, List
 from .functions import dispatchmethod
 from PyQt5.QtGui import QQuaternion, QMatrix4x4, QVector3D, QMatrix3x3, QVector4D
 
@@ -184,7 +184,7 @@ class Matrix4x4(QMatrix4x4):
 
     @classmethod
     def fromRotTrans(cls, R: np.ndarray, t=None):
-        """rotate by R and translate by t"""
+        """rotate by R(3x3) and translate by t"""
         if t is None:
             t = np.zeros(3, dtype='f4')
         data = np.zeros((4,4), dtype='f4')
@@ -194,24 +194,25 @@ class Matrix4x4(QMatrix4x4):
         return cls(data)
 
     @classmethod
+    def fromRpyXyz(cls, rpy: List[float], xyz: List[float]):
+        """rotate by pitch, yaw, roll(degree) and then translate by xyz"""
+        return cls.fromEulerAngles(rpy[0], rpy[1], rpy[2]).moveto(xyz[0], xyz[1], xyz[2])
+
+    @classmethod
     def fromEulerAngles(cls, pitch, yaw, roll):
-        """rotate around x, then y, then z"""
+        """rotate around x, then y, then z (degree)"""
         rot = Quaternion.fromEulerAngles(pitch, yaw, roll)
         return cls.fromQuaternion(rot)
 
     @classmethod
     def fromTranslation(cls, x=0., y=0., z=0.):
         """translate by x,y,z"""
-        trans = QMatrix4x4()
-        trans.translate(x, y, z)
-        return cls(trans)
+        return cls().moveto(x, y, z)
 
     @classmethod
     def fromScale(cls, x=1., y=1., z=1.):
         """scale by x,y,z"""
-        scale = QMatrix4x4()
-        scale.scale(x, y, z)
-        return cls(scale)
+        return cls().scale(x, y, z)
 
     @classmethod
     def fromAxisAndAngle(cls, x=0., y=0., z=0., angle=0.):

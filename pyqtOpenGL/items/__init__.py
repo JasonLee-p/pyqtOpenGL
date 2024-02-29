@@ -13,6 +13,7 @@ from .GLTextItem import GLTextItem
 from .GLColorSurfaceItem import GLColorSurfaceItem
 from .GL3DGridItem import GL3DGridItem
 from .GLLinePlotItem import GLLinePlotItem
+from .GLURDFItem import GLURDFItem, GLLinkItem, Joint
 
 from .MeshData import *
 from .light import *

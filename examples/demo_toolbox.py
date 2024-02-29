@@ -1,10 +1,8 @@
 import numpy as np
-from pyqtOpenGL.GLViewWidget import GLViewWidget
-from pyqtOpenGL.items import *
-from pyqtOpenGL.transform3d import *
 from PyQt5 import QtCore,  QtWidgets
 from PyQt5.QtGui import QCloseEvent
-from pyqtOpenGL import tb
+from pyqtOpenGL.items import *
+from pyqtOpenGL import GLViewWidget, tb, Matrix4x4
 
 
 class GLView(GLViewWidget):

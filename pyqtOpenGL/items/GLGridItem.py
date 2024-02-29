@@ -161,7 +161,7 @@ vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewPos)
     //vec3 halfwayDir = normalize(lightDir + viewDir);
     vec3 reflectDir = reflect(-lightDir, normal);
     // 漫反射着色
-    float diff = abs(dot(normal, lightDir));
+    float diff = max(dot(normal, lightDir), 0.0);;
     // 镜面光着色
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
     //float spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
