@@ -755,6 +755,7 @@ class ToolBox():
     @classmethod
     @contextmanager
     def group(cls, label, horizontal=True, spacing=5, show=True):
+        """show: 是否显示group的边框"""
         try:
             if show:
                 container = ToolGroupBox(label, horizontal, spacing=spacing)

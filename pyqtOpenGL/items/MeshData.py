@@ -35,8 +35,8 @@ class Material():
         ambient = [0.4, 0.4, 0.4],
         diffuse = [1.0, 1.0, 1.0],
         specular = [0.2, 0.2, 0.2],
-        shininess = 10,
-        opacity = 1,
+        shininess: float = 10.,
+        opacity: float = 1.,
         textures: List[Texture2D] = list(),
         textures_paths: dict = dict(),
         directory = Path(),
@@ -167,7 +167,7 @@ class Mesh():
         if self._indices is not None:
             gl.glDrawElements(gl.GL_TRIANGLES, self._indices.size, gl.GL_UNSIGNED_INT, c_void_p(0))
         else:
-            gl.glDrawArrays(gl.GL_TRIANGLES, 0, self._vertexes.size)
+            gl.glDrawArrays(gl.GL_TRIANGLES, 0, int(self._vertexes.size/3))
 
     def setMaterial(self, material=None):
         if isinstance(material, dict):

@@ -57,7 +57,7 @@ class GLGridItem(GLGraphicsItem, LightMixin):
             -x/2.,  y/2., 0,
             x/2.,  -y/2., 0,
             x/2.,   y/2., 0,
-        ], dtype=np.float32)
+        ], dtype=np.float32).reshape(-1, 3)
         self.rotate(90, 1, 0, 0)
         self.setDepthValue(-1)
         self.addLight(lights)
@@ -68,9 +68,10 @@ class GLGridItem(GLGraphicsItem, LightMixin):
         self.vao = VAO()
 
         self.vbo1 = VBO(
-            data = [self.line_vertices, self.plane_vertices],
-            size = [3, 3],
+            data = [np.vstack([self.plane_vertices, self.line_vertices])],
+            size = [3],
         )
+        self.vbo1.setAttrPointer(0, attr_id=0)
 
     def paint(self, model_matrix=Matrix4x4()):
         self.setupGLState()
@@ -89,14 +90,12 @@ class GLGridItem(GLGraphicsItem, LightMixin):
             self.vao.bind()
             # draw surface
             self.shader.set_uniform("oColor", self.__color, "vec4")
-            self.vbo1.setAttrPointer(1, attr_id=0)
             gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, 0, 4)
 
             # draw lines
             gl.glDisable(gl.GL_BLEND)
             gl.glDisable(gl.GL_DEPTH_TEST)
             self.shader.set_uniform("oColor", np.array([0, 0, 0, 1], "f4"), "vec4")
-            self.vbo1.setAttrPointer(0, attr_id=0)
             gl.glDrawArrays(gl.GL_LINES, 0, len(self.line_vertices))
             gl.glEnable(gl.GL_DEPTH_TEST)
             gl.glEnable(gl.GL_BLEND)

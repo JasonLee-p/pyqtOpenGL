@@ -28,7 +28,7 @@ class PointLight(GLGraphicsItem):
     ):
         super().__init__(parentItem=None)
         self.setGLOptions(glOptions)
-        self.position = pos
+        self.position = Vector3(pos)
         self.amibent = ambient
         self.diffuse = diffuse
         self.specular = specular
@@ -72,7 +72,8 @@ class PointLight(GLGraphicsItem):
 
     @classmethod
     def initializeGL(cls):
-        cls._light_vert, cls._light_idx = sphere(0.3, 12, 12)
+        """在GLViewWidget创建后自动调用, 初始化光源的渲染数据"""
+        cls._light_vert, cls._light_idx = sphere(0.1, 12, 12)
         cls._light_vao = VAO()
         cls._light_vbo = VBO([cls._light_vert], [3])
         cls._light_vbo.setAttrPointer([0], [0])

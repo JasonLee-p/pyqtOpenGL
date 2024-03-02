@@ -306,6 +306,9 @@ class Vector3():
     def copy(self):
         return Vector3(self._data)
 
+    def __iter__(self):
+        return iter(self._data)
+
     def __len__(self):
         return 3
 
@@ -410,6 +413,22 @@ class Vector3():
     def __setitem__(self, i, x):
         self._data[i] = x
 
+    @classmethod
+    def fromPolar(cls, r, theta, phi) -> 'Vector3':
+        """theta, phi in degrees"""
+        theta = np.radians(theta)
+        phi = np.radians(phi)
+        x = r * np.sin(phi) * np.cos(theta)
+        y = r * np.sin(phi) * np.sin(theta)
+        z = r * np.cos(phi)
+        return cls(x, y, z)
+
+    def toPolar(self) -> tuple:
+        """theta, phi in degrees"""
+        r = np.linalg.norm(self._data)
+        theta = degrees(acos(self._data[0] / r))
+        phi = degrees(acos(self._data[2] / r))
+        return r, theta, phi
 
 @Vector3.__init__.register
 def _(self, v: Vector3):
