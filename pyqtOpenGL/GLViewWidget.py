@@ -33,6 +33,9 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         self.items : List[GLGraphicsItem] = []
         self.lights: Set[PointLight] = set()
 
+        self.last_pos = None
+        self.press_pos = None
+
         # 设置多重采样抗锯齿
         format = QtGui.QSurfaceFormat()
         format.setSamples(4)
@@ -148,36 +151,41 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
 
     def mousePressEvent(self, ev):
         lpos = ev.position() if hasattr(ev, 'position') else ev.localPos()
-        self.mousePressPos = lpos
-        self.cam_quat, self.cam_pos = self.camera.get_quat_pos()
+        self.press_pos = lpos
+        self.last_pos = lpos
+        self.cam_press_quat, self.cam_press_pos = self.camera.get_quat_pos()
 
     def mouseMoveEvent(self, ev):
         ctrl_down = (ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier)
         shift_down = (ev.modifiers() & QtCore.Qt.KeyboardModifier.ShiftModifier)
         alt_down = (ev.modifiers() & QtCore.Qt.KeyboardModifier.AltModifier)
-
         lpos = ev.position() if hasattr(ev, 'position') else ev.localPos()
-        diff = lpos - self.mousePressPos
 
-        if ctrl_down:
-            diff *= 0.1
+        cam_quat, cam_pos = self.camera.get_quat_pos()
+        diff = lpos - self.last_pos
+        self.last_pos = lpos
 
-        if alt_down:
-            roll = -diff.x() / 5
-
-        if shift_down:
+        if shift_down and not alt_down:  # 锁定水平或垂直转动
+            cam_quat, cam_pos = self.cam_press_quat, self.cam_press_pos
+            diff = lpos - self.press_pos
             if abs(diff.x()) > abs(diff.y()):
                 diff.setY(0)
             else:
                 diff.setX(0)
 
+        if ctrl_down:
+            diff *= 0.1
+
+        if alt_down:
+            roll = diff.x() / 5
+
         if ev.buttons() == QtCore.Qt.MouseButton.LeftButton:
             if alt_down:
-                self.camera.orbit(0, 0, roll, base=self.cam_quat)
+                self.camera.orbit(0, 0, roll, base=cam_quat)
             else:
-                self.camera.orbit(diff.x(), diff.y(), base=self.cam_quat)
+                self.camera.orbit(diff.x(), diff.y(), base=cam_quat)
         elif ev.buttons() == QtCore.Qt.MouseButton.MiddleButton:
-            self.camera.pan(diff.x(), -diff.y(), 0, base=self.cam_pos)
+            self.camera.pan(diff.x(), -diff.y(), 0, base=cam_pos)
         self.update()
 
     def wheelEvent(self, ev):
