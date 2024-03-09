@@ -14,6 +14,7 @@ from .GLColorSurfaceItem import GLColorSurfaceItem
 from .GL3DGridItem import GL3DGridItem
 from .GLLinePlotItem import GLLinePlotItem
 from .GLURDFItem import GLURDFItem, GLLinkItem, Joint
+from .GLDepthItem import GLDepthItem
 
 from .MeshData import *
 from .light import *
