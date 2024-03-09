@@ -4,7 +4,7 @@ from math import radians
 from PyQt5 import QtCore
 from .transform3d import Matrix4x4, Quaternion
 import numpy as np
-
+from typing import Union
 
 GLOptions = {
     'opaque': {
@@ -98,7 +98,7 @@ class GLGraphicsItem(QtCore.QObject):
             items.extend(child.recursiveChildItems())
         return items
 
-    def setGLOptions(self, opts):
+    def setGLOptions(self, opts: Union[str, dict]):
         """
         Set the OpenGL state options to use immediately before drawing this item.
         (Note that subclasses must call setupGLState before painting for this to work)
@@ -134,7 +134,7 @@ class GLGraphicsItem(QtCore.QObject):
             opts = GLOptions[opts]
         self.__glOpts = opts.copy()
 
-    def updateGLOptions(self, opts):
+    def updateGLOptions(self, opts: dict):
         """
         Modify the OpenGL state options to use immediately before drawing this item.
         *opts* must be a dictionary as specified by setGLOptions.
@@ -148,9 +148,9 @@ class GLGraphicsItem(QtCore.QObject):
     def view(self):
         return self.__view
 
-    def setDepthValue(self, value):
+    def setDepthValue(self, value: int):
         """
-        Sets the depth value of this item. Default is 0.
+        Sets the depth value of this item. Default is 0. Range is -1000 to 1000.
         This controls the order in which items are drawn--those with a greater depth value will be drawn later.
         Items with negative depth values are drawn before their parent.
         (This is analogous to QGraphicsItem.zValue)

@@ -24,11 +24,11 @@ class GLGelSimItem(GLGraphicsItem):
             path = BASE_DIR / "resources/objects/GelSlim_obj/GelSlim.obj",
             lights = lights,
             glOptions = "translucent_cull",
-            texcoords_scale = 40,
             parentItem = self,
         )
         self.gelslim_base.setPaintOrder([1, 0])
         self.gelslim_base.setDepthValue(0)
+        self.gelslim_base.meshes[1]._texcoords /= 10
 
         self.gelslim_gel = GLSurfacePlotItem(
             zmap = np.zeros((30, 40), dtype=np.float32),

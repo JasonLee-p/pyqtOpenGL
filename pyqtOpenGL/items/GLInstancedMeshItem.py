@@ -97,7 +97,8 @@ class GLInstancedMeshItem(GLGraphicsItem, LightMixin):
         # gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
         self.vao.bind()
         with self.shader:
-            self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.shader.set_uniform("view", self.view_matrix().glData, "mat4")
+            self.shader.set_uniform("proj", self.proj_matrix().glData, "mat4")
             self.shader.set_uniform("model", model_matrix.glData, "mat4")
             self.shader.set_uniform("ViewPos",self.view_pos(), "vec3")
             self.shader.set_uniform("size", self._size, "float")
@@ -127,6 +128,7 @@ vertex_shader = """
 
 uniform mat4 model;
 uniform mat4 view;
+uniform mat4 proj;
 uniform float size;
 uniform bool calcNormal;
 
@@ -147,7 +149,7 @@ void main() {
     } else {
         Normal = vec3(0, 0, 1);
     }
-    gl_Position = view * vec4(FragPos, 1.0);
+    gl_Position = proj * view * vec4(FragPos, 1.0);
 }
 """
 

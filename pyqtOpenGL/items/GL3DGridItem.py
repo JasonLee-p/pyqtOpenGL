@@ -101,7 +101,8 @@ class GL3DGridItem(GLGraphicsItem):
         self.setupGLState()
 
         gl.glLineWidth(self._lineWidth)
-        self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+        self.shader.set_uniform("view", self.view_matrix().glData, "mat4")
+        self.shader.set_uniform("proj", self.proj_matrix().glData, "mat4")
         self.shader.set_uniform("model", model_matrix.glData, "mat4")
         self.shader.set_uniform("opacity", self._opacity, "float")
 
@@ -129,10 +130,11 @@ layout (location = 1) in vec3 aColor;
 out vec3 oColor;
 
 uniform mat4 view;
+uniform mat4 proj;
 uniform mat4 model;
 
 void main() {
-    gl_Position = view * model * vec4(aPos, 1.0);
+    gl_Position = proj * view * model * vec4(aPos, 1.0);
     oColor = aColor;
 }
 """

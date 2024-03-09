@@ -93,10 +93,6 @@ class GLImageItem(GLGraphicsItem):
             return
         self.updateGL()
         self.setupGLState()
-
-        self.shader.set_uniform("proj", self.proj_matrix().glData, "mat4")
-        self.shader.set_uniform("view", self.view_matrix().glData, "mat4")
-        self.shader.set_uniform("model", model_matrix.glData, "mat4")
         self.texture.bind()
         self.shader.set_uniform("texture1", self.texture, "sample2D")
 
@@ -107,10 +103,6 @@ class GLImageItem(GLGraphicsItem):
 
 vertex_shader = """
 #version 330 core
-
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 proj;
 
 layout (location = 0) in vec3 iPos;
 layout (location = 1) in vec2 iTexCoord;

@@ -4,7 +4,7 @@ import numpy as np
 from .shader import Shader
 from .BufferObject import VBO, EBO, VAO
 from ..GLGraphicsItem import GLGraphicsItem
-from ..transform3d import Matrix4x4, Vector3
+from ..transform3d import Matrix4x4, Vector3, Quaternion
 from .MeshData import cone, direction_matrixs
 
 __all__ = ['GLAxisItem']
@@ -37,18 +37,26 @@ class GLAxisItem(GLGraphicsItem):
     def __init__(
         self,
         size=Vector3(1.,1.,1.),
-        width=1.5,
+        width=2,
         tip_size=1,
         antialias=True,
         glOptions='opaque',
+        fix_to_corner=False,
         parentItem=None
     ):
         super().__init__(parentItem=parentItem)
         self.__size = Vector3(size)
         self.__width = width
-        self.antialias = antialias
+        self.__fix_to_corner = fix_to_corner
+
         self.setGLOptions(glOptions)
-        self.cone_vertices, self.cone_indices = cone(0.12*width*tip_size, 0.3*width*tip_size)
+        if fix_to_corner:
+            # 保证坐标轴不会被其他物体遮挡
+            self.updateGLOptions({"glClear": (gl.GL_DEPTH_BUFFER_BIT,)})
+            self.setDepthValue(1000)  # make sure it is drawn last
+
+        self.antialias = antialias
+        self.cone_vertices, self.cone_indices = cone(0.06*width*tip_size, 0.15*width*tip_size)
 
     def setSize(self, x=None, y=None, z=None):
         """
@@ -101,9 +109,10 @@ class GLAxisItem(GLGraphicsItem):
             gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
         gl.glLineWidth(self.__width)
 
+        proj_view = self.proj_view_matrix().glData
         with self.shader:
             self.shader.set_uniform("sizev3", self.size(), "vec3")
-            self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.shader.set_uniform("view", proj_view, "mat4")
             self.shader.set_uniform("model", model_matrix.glData, "mat4")
             self.vao_line.bind()
             gl.glDrawArrays(gl.GL_POINTS, 0, 3)
@@ -111,12 +120,23 @@ class GLAxisItem(GLGraphicsItem):
         gl.glEnable(gl.GL_CULL_FACE)
         gl.glCullFace(gl.GL_BACK)
         with self.shader_cone:
-            self.shader_cone.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.shader_cone.set_uniform("view", proj_view, "mat4")
             self.shader_cone.set_uniform("model", model_matrix.glData, "mat4")
             self.vao_cone.bind()
             gl.glDrawElementsInstanced(gl.GL_TRIANGLES, self.cone_indices.size, gl.GL_UNSIGNED_INT, None, 3)
         gl.glDisable(gl.GL_CULL_FACE)
 
+    def proj_view_matrix(self):
+        if self.__fix_to_corner:
+            view = self.view()
+            proj = Matrix4x4.create_projection(
+                20, 1 / view.deviceRatio(), 1, 50.0
+            )
+            # 计算在这个投影矩阵下, 窗口右上角点在相机坐标系下的坐标
+            pos = proj.inverse() * Vector3(0.75, 0.75, 1)
+            return proj * Matrix4x4.fromTranslation(*(pos * 40)) * self.view().camera.quat
+        else:
+            return super().proj_view_matrix()
 
 
 vertex_shader = """

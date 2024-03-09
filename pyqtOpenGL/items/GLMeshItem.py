@@ -19,7 +19,6 @@ class GLMeshItem(GLGraphicsItem, LightMixin):
         texcoords = None,
         lights = list(),
         material = None,
-        texcoords_scale = 1,
         calc_normals = True,
         mesh : Mesh = None,
         glOptions = 'opaque',
@@ -32,7 +31,7 @@ class GLMeshItem(GLGraphicsItem, LightMixin):
         else:
             self._mesh = Mesh(vertexes, indices, texcoords, normals,
                           material, None, gl.GL_STATIC_DRAW,
-                          texcoords_scale, calc_normals)
+                          calc_normals)
         self.addLight(lights)
 
     def initializeGL(self):
@@ -45,7 +44,8 @@ class GLMeshItem(GLGraphicsItem, LightMixin):
 
         # gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
         with self.shader:
-            self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.shader.set_uniform("view", self.view_matrix().glData, "mat4")
+            self.shader.set_uniform("proj", self.proj_matrix().glData, "mat4")
             self.shader.set_uniform("model", model_matrix.glData, "mat4")
             self.shader.set_uniform("ViewPos",self.view_pos(), "vec3")
             self._mesh.paint(self.shader)
@@ -68,12 +68,13 @@ out vec3 FragPos;
 out vec3 Normal;
 
 uniform mat4 view;
+uniform mat4 proj;
 uniform mat4 model;
 
 void main() {
     TexCoords = aTexCoords;
     FragPos = vec3(model * vec4(aPos, 1.0));
     Normal = normalize(mat3(transpose(inverse(model))) * aNormal);
-    gl_Position = view * vec4(FragPos, 1.0);
+    gl_Position = proj * view * vec4(FragPos, 1.0);
 }
 """

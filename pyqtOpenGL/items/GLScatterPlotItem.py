@@ -85,7 +85,8 @@ class GLScatterPlotItem(GLGraphicsItem):
 
         with self.shader:
             self.shader.set_uniform("size", self._size, "float")
-            self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.shader.set_uniform("view", self.view_matrix().glData, "mat4")
+            self.shader.set_uniform("proj", self.proj_matrix().glData, "mat4")
             self.shader.set_uniform("model", model_matrix.glData, "mat4")
             self.vao.bind()
             gl.glDrawArrays(gl.GL_POINTS, 0, self._npoints)
@@ -97,6 +98,7 @@ vertex_shader = """
 uniform float size;
 uniform mat4 model;
 uniform mat4 view;
+uniform mat4 proj;
 
 layout (location = 0) in vec3 iPos;
 layout (location = 1) in vec3 iColor;
@@ -105,7 +107,7 @@ out vec3 oColor;
 
 void main() {
     // 根据 camPos 和 iPos 计算出距离
-    gl_Position = view * model * vec4(iPos, 1.0);
+    gl_Position = proj * view * model * vec4(iPos, 1.0);
     float distance = gl_Position.z / 1.;
     gl_PointSize = 100 * size / distance;
     oColor = iColor;

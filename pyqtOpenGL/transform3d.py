@@ -281,7 +281,7 @@ class Matrix4x4(QMatrix4x4):
                 return other @ mat4.T
 
     @classmethod
-    def create_projection(cls, angle: float, aspect: float, near: float, far: float) -> None:
+    def create_projection(cls, angle: float, aspect: float, near: float, far: float) -> 'Matrix4x4':
         proj = cls()
         proj.perspective(angle, aspect, near, far)
         return proj

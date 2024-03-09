@@ -1,9 +1,10 @@
 import numpy as np
 import math
-from typing import List
+from typing import List, Union
 from pathlib import Path
 import OpenGL.GL as gl
 import assimp_py as assimp
+from time import time
 from ctypes import c_float, sizeof, c_void_p, Structure
 from .shader import Shader
 from .BufferObject import VAO, VBO, EBO
@@ -39,7 +40,7 @@ class Material():
         opacity: float = 1.,
         textures: List[Texture2D] = list(),
         textures_paths: dict = dict(),
-        directory = Path(),
+        directory: Union[str, Path] = Path(),
     ):
         self.ambient = Vector3(ambient)
         self.diffuse = Vector3(diffuse)
@@ -108,13 +109,12 @@ class Mesh():
     def __init__(
         self,
         vertexes,
-        indices,
+        indices = None,
         texcoords = None,
         normals = None,
         material = None,
         directory = None,
         usage = gl.GL_STATIC_DRAW,
-        texcoords_scale = 1,
         calc_normals = False,
     ):
         self._vertexes = np.array(vertexes, dtype=np.float32)
@@ -136,7 +136,7 @@ class Mesh():
         if texcoords is None:
             self._texcoords = None
         else:
-            self._texcoords = np.array(texcoords, dtype=np.float32)[..., :2] / texcoords_scale
+            self._texcoords = np.array(texcoords, dtype=np.float32)[..., :2]
 
         if isinstance(material, dict):
             self._material = Material(material, directory)
@@ -177,6 +177,50 @@ class Mesh():
 
     def getMaterial(self):
         return self._material
+
+    @classmethod
+    def load_model(cls, path: Union[str, Path]) -> List["Mesh"]:
+        meshes = list()
+        directory = Path(path).parent
+        face_num = 0
+
+        start_time = time()
+        post_process = (assimp.Process_Triangulate |
+                        assimp.Process_FlipUVs|
+                        assimp.Process_GenNormals|
+                        assimp.Process_PreTransformVertices
+                        )
+                        # assimp.Process_CalcTangentSpace 计算法线空间
+        scene = assimp.ImportFile(str(path), post_process)
+        if not scene:
+            raise ValueError("ERROR:: Assimp model failed to load, {}".format(path))
+
+        is_dae = Path(path).suffix == ".dae"
+        for m in scene.meshes:
+
+            # 若模型是 dae 文件, 且其中 <up_axis>Z_UP</up_axis>, 则需要将原始坐标绕 x 轴旋转 90 度
+            verts = np.array(m.vertices, dtype=np.float32).reshape(-1, 3)
+            norms = np.array(m.normals, dtype=np.float32).reshape(-1, 3)
+            if is_dae: # x, y, z -> x, -z, y
+                verts[:, 2] = -verts[:, 2]
+                verts[:, [1, 2]] = verts[:, [2, 1]]
+                norms[:, 2] = -norms[:, 2]
+                norms[:, [1, 2]] = norms[:, [2, 1]]
+
+            meshes.append(
+                cls(
+                    verts,
+                    m.indices,
+                    m.texcoords[0] if len(m.texcoords) > 0 else None,
+                    norms,
+                    scene.materials[m.material_index],
+                    directory=directory,
+                )
+            )
+            face_num += len(m.indices)
+
+        print(f"Took {round(time()-start_time, 3)}s to load {path} (faces: {face_num})")
+        return meshes
 
 
 def cone(radius, height, slices=12):

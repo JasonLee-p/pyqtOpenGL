@@ -122,13 +122,15 @@ class GLArrowPlotItem(GLGraphicsItem):
 
         self.vao.bind()
         with self.shader:
-            self.shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.shader.set_uniform("view", self.view_matrix().glData, "mat4")
+            self.shader.set_uniform("proj", self.proj_matrix().glData, "mat4")
             self.shader.set_uniform("model", model_matrix.glData, "mat4")
             self.vbo_shaft.setAttrPointer(2, divisor=0, attr_id=2)
             gl.glDrawArrays(gl.GL_POINTS, 0, self._num)
 
         with self.shader_cone:
-            self.shader_cone.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.shader_cone.set_uniform("view", self.view_matrix().glData, "mat4")
+            self.shader_cone.set_uniform("proj", self.proj_matrix().glData, "mat4")
             self.shader_cone.set_uniform("model", model_matrix.glData, "mat4")
             self.vbo_shaft.setAttrPointer(2, divisor=1, attr_id=2)
             self.ebo_cone.bind()
@@ -145,6 +147,7 @@ vertex_shader = """
 
 uniform mat4 model;
 uniform mat4 view;
+uniform mat4 proj;
 
 layout (location = 0) in vec3 stPos;
 layout (location = 1) in vec3 endPos;
@@ -156,7 +159,7 @@ out V_OUT {
 } v_out;
 
 void main() {
-    mat4 matrix = view * model;
+    mat4 matrix = proj * view * model;
     gl_Position =  matrix * vec4(stPos, 1.0);
     v_out.endPos = matrix * vec4(endPos, 1.0);
     v_out.color = aColor;
@@ -168,6 +171,7 @@ vertex_shader_cone = """
 
 uniform mat4 model;
 uniform mat4 view;
+uniform mat4 proj;
 
 layout (location = 7) in vec3 iPos;
 layout (location = 2) in vec3 aColor;
@@ -180,7 +184,7 @@ out vec3 oColor;
 
 void main() {
     mat4 transform = mat4(row1, row2, row3, row4);
-    gl_Position =  view * model * transform * vec4(iPos, 1.0);
+    gl_Position =  proj * view * model * transform * vec4(iPos, 1.0);
     oColor = aColor * vec3(0.9, 0.9, 0.9);
 }
 """

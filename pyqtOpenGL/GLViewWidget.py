@@ -1,10 +1,12 @@
+import cv2
+import numpy as np
+from typing import List, Set
 from OpenGL.GL import *  # noqa
 from math import radians, cos, sin, tan, sqrt
 from PyQt5 import QtCore, QtWidgets, QtGui
 from .camera import Camera
 from .functions import mkColor
 from .transform3d import Matrix4x4, Quaternion, Vector3
-from typing import List, Set
 from .GLGraphicsItem import GLGraphicsItem
 from .items.light import PointLight
 
@@ -203,6 +205,16 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         Read the current buffer pixels out as a QImage.
         """
         return self.grabFramebuffer()
+
+    def readImage(self):
+        """
+        Read the current buffer pixels out as a cv2 Image.
+        """
+        qimage = self.grabFramebuffer()
+        w, h = self.width(), self.height()
+        bytes = qimage.bits().asstring(qimage.byteCount())
+        img = np.frombuffer(bytes, np.uint8).reshape((h, w, 4))
+        return cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
 
     def isCurrent(self):
         """
