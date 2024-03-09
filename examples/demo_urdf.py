@@ -8,7 +8,7 @@ class GLView(GLViewWidget):
         super().__init__(parent=parent, **kwargs)
         self.resize(1200, 900)
         self.camera.set_params((-0.01, 0.38, 3.94), 17.95, 0.03, -0.23)
-        self.ax = GLAxisItem(size=(2, 2, 2), width=3, tip_size=0.2)
+        self.ax = GLAxisItem(fix_to_corner=True)
 
         # -- lights
         self.light = PointLight(pos=[0, 15, 0],

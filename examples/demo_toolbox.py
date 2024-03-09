@@ -10,15 +10,15 @@ class GLView(GLViewWidget):
         super().__init__(parent=parent, **kwargs)
         # -- lights
         self.light = PointLight(pos=[0, 5, 4], ambient=(0.8, 0.8, 0.8), diffuse=(0.8, 0.8, 0.8), visible=False)
-        self.ax = GLAxisItem(size=(8, 8, 8))
+        self.ax = GLAxisItem(fix_to_corner=True)
         self.grid = GLGridItem(
-            size=(7, 7), lineWidth=1, color=(1, 1, 1, 1),
+            size=(15, 15), lineWidth=1, color=(1, 1, 1, 1),
             lights=[
                 PointLight(pos=[0, 5, 4],
                            ambient=(1.8, 1.8, 1.8), diffuse=(0.8, 0.8, 0.8),
                            visible=False)
             ]
-        )
+        ).translate(0, -3, 0)
         # sphere
         ver1, ind1, uv1, norm1 = sphere(3, 22, 40, calc_uv_norm=True)
         self.sphere = GLMeshItem(

@@ -6,8 +6,8 @@ from pyqtOpenGL import GLViewWidget, tb, Matrix4x4, Vector3
 class GLView(GLViewWidget):
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent=parent, **kwargs)
-        self.resize(1200, 900)
-        self.camera.set_params((0., 0., 5.0), -60, 0., -90)
+        self.resize(800, 600)
+        self.camera.set_params((0., 0., 4.4), -60, 0., -90)
 
         # -- data
         # cube_vert, cube_norm, cube_uv = cube(2, 2, 2)
@@ -21,7 +21,7 @@ class GLView(GLViewWidget):
                                specular=(1, 1, 1), visible=True, directional=False)
 
         # -- items
-        self.ax = GLAxisItem(size=(2, 2, 2), width=3, tip_size=0.2)
+        self.ax = GLAxisItem(fix_to_corner=True)
         self.grid = GLGridItem(
             size=(15, 15), spacing=(0.5, 0.5), lineWidth=1,
             lights=[PointLight(pos=[-2, 1, 4], ambient=(.1, .1, .1), diffuse=(1, 1, 1),
