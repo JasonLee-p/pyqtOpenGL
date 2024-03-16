@@ -4,24 +4,28 @@ from typing import List, Set
 from OpenGL.GL import *  # noqa
 from math import radians, cos, sin, tan, sqrt
 from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5.QtCore import QPoint
+
+from pyqtOpenGL.items.GLSelectBox import GLSelectBox
 from .camera import Camera
 from .functions import mkColor
 from .transform3d import Matrix4x4, Quaternion, Vector3
-from .GLGraphicsItem import GLGraphicsItem
+from .GLGraphicsItem import GLGraphicsItem, PickColorManager
 from .items.light import PointLight
+
 
 class GLViewWidget(QtWidgets.QOpenGLWidget):
 
     def __init__(
-        self,
-        cam_position = Vector3(0., 0., 10.),
-        yaw = 0.,
-        pitch = 0.,
-        roll = 0.,
-        fov = 45.,
-        bg_color = (0.2, 0.3, 0.3, 1.),
-        # bg_color = (0.95, 0.95, 0.95, 1.),
-        parent=None,
+            self,
+            cam_position=Vector3(0., 0., 10.),
+            yaw=0.,
+            pitch=0.,
+            roll=0.,
+            fov=45.,
+            bg_color=(0.2, 0.3, 0.3, 1.),
+            # bg_color = (0.95, 0.95, 0.95, 1.),
+            parent=None,
     ):
         """
         Basic widget for displaying 3D data
@@ -32,8 +36,16 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
 
         self.camera = Camera(cam_position, yaw, pitch, roll, fov)
         self.bg_color = bg_color
-        self.items : List[GLGraphicsItem] = []
+        self.items: List[GLGraphicsItem] = []
         self.lights: Set[PointLight] = set()
+
+        # 选择框
+        self.select_start = QPoint()
+        self.select_end = QPoint()
+        self.select_flag = False
+        self.select_box = GLSelectBox()
+        self.select_box.setView(self)
+        self.selected_items = []  # 用于管理物体的选中状态
 
         self.last_pos = None
         self.press_pos = None
@@ -117,6 +129,14 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
     def initializeGL(self):
         """initialize OpenGL state after creating the GL context."""
         PointLight.initializeGL()
+        # 创建频幕大小的帧缓冲区，这样就不需要调整缓冲区大小
+        user32 = ctypes.windll.user32
+        WIN_WID = user32.GetSystemMetrics(0)
+        WIN_HEI = user32.GetSystemMetrics(1)
+        self._createFramebuffer(WIN_WID, WIN_HEI)
+        self.select_box.initializeGL()
+        glEnable(GL_MULTISAMPLE)
+        self.addItem(self.select_box)
 
     def paintGL(self):
         """
@@ -126,20 +146,129 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         """
         glClearColor(*self.bg_color)
         glDepthMask(GL_TRUE)
-        glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT )
-        self.drawItems()
+        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
+        self.select_box.updateGL(self.select_start, self.select_end) if self.select_box.visible() else None
+        self.drawItems(pickMode=False)
+        self.__update_FPS()
 
-    def drawItems(self):
-        for it in self.items:
-            try:
-                it.drawItemTree()
-            except:
-                printExc()
-                print("Error while drawing item %s." % str(it))
+    def _createFramebuffer(self, width, height):
+        """
+        创建帧缓冲区, 用于拾取
+        Create a framebuffer for picking
+        """
+        self.__framebuffer = glGenFramebuffers(1)
+        glBindFramebuffer(GL_FRAMEBUFFER, self.__framebuffer)
+        self.__texture = glGenTextures(1)
+        glBindTexture(GL_TEXTURE_2D, self.__texture)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, None)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, self.__texture, 0)
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
-        # draw lights
-        for light in self.lights:
-            light.paint(self.get_proj_view_matrix())
+    def _resizeFramebuffer(self, width, height):
+        glBindFramebuffer(GL_FRAMEBUFFER, self.__framebuffer)
+        glBindTexture(GL_TEXTURE_2D, self.__texture)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, None)
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+    def renderToImage(self, path):
+        self.makeCurrent()
+        self.grabFramebuffer().save(path)
+        self.doneCurrent()
+
+    def pickItems(self, x_, y_, w_, h_):
+        ratio = 3  # 为了提高渲染和拾取速度，暂将渲染视口缩小9倍
+        x_, y_, w_, h_ = self._normalizeRect(x_, y_, w_, h_, ratio)
+        glBindFramebuffer(GL_FRAMEBUFFER, self.__framebuffer)
+        glViewport(0, 0, self.deviceWidth() // ratio, self.deviceHeight() // ratio)
+        glClearColor(0, 0, 0, 0)
+        glDisable(GL_MULTISAMPLE)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
+        # 设置拾取区域
+        glScissor(x_, self.height() // ratio - y_ - h_, w_, h_)
+        glEnable(GL_SCISSOR_TEST)
+        # 在这里设置额外的拾取参数，例如鼠标位置等
+        self.drawItems(pickMode=True)
+        glDisable(GL_SCISSOR_TEST)
+        pixels = glReadPixels(x_, self.deviceHeight() // ratio - y_ - h_, w_, h_, GL_RGBA, GL_UNSIGNED_BYTE)
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+        glClearColor(*self.bg_color)
+        glEnable(GL_MULTISAMPLE)
+        glViewport(0, 0, self.deviceWidth(), self.deviceHeight())
+        # 获取拾取到的物体
+        pick_data = np.frombuffer(pixels, dtype=np.uint8).reshape(h_ * w_, 4)
+        # # 保存为图片
+        # img_data = np.frombuffer(pixels, dtype=np.uint8).reshape(h, w, 4)
+        # img_data = np.flipud(img_data)
+        # img = Image.fromarray(img_data)
+        # img.save('pick.png')
+        # 去掉所有为[0.,0.,0.,0.]的数据
+        pick_data = pick_data[np.any(pick_data != 0, axis=1)]
+        # 获取选中的物体
+        selected_items = []
+        id_set = list()
+        for id_ in pick_data:
+            if tuple(id_) in id_set:
+                continue
+            item: GLGraphicsItem = PickColorManager().get(tuple(id_[0:3]))
+            if item:
+                selected_items.append(item)
+            id_set.append(tuple(id_))
+        return selected_items
+
+    def _normalizeRect(self, x_, y, w, h, ratio: int = 3):
+        """
+        防止拾取区域超出窗口范围
+        Prevent the picking area from exceeding the window range
+        :param x_: 拾取区域左下角的x坐标
+        :param y: 拾取区域左下角的y坐标
+        :param w: 拾取区域的宽度
+        :param h: 拾取区域的高度
+        :param ratio: 缩放比例
+        :return:
+        """
+        if ratio > 5:
+            ratio = 5
+            print("[Warning] ratio should be less than 5.")
+        # 防止拾取区域超出窗口范围
+        if w < 0:
+            x_, w = max(0, x_ + w), -w
+        if h < 0:
+            y, h = max(0, y + h), -h
+        if x_ + w > self.deviceWidth():
+            w = self.deviceWidth() - x_
+        if y + h > self.deviceHeight():
+            h = self.deviceHeight() - y
+        x_, y, w, h = x_ // ratio, y // ratio, w // ratio, h // ratio
+
+        # 防止拾取区域过小
+        if w <= 6 // ratio:
+            x_ = max(0, x_ - 1)
+            w = 3 // ratio
+        if h <= 6 // ratio:
+            y = max(0, y - 1)
+            h = 3 // ratio
+
+        return x_, y, w, h
+
+    def drawItems(self, pickMode=False):
+        if pickMode:  # 拾取模式
+            for it in self.items:
+                try:
+                    it.drawItemTree_pickMode()
+                except Exception as e:
+                    printExc()
+                    print("Error while drawing item %s in pick mode." % str(it))
+        else:
+            for it in self.items:  # 正常模式
+                try:
+                    it.drawItemTree()
+                except Exception as e:  # noqa
+                    printExc()
+                    print("Error while drawing item %s." % str(it))
+
+            # draw lights
+            for light in self.lights:
+                light.paint(self.get_proj_view_matrix())
 
     def pixelSize(self, pos=Vector3(0, 0, 0)):
         """
@@ -195,9 +324,9 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         if delta == 0:
             delta = ev.angleDelta().y()
         if (ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier):
-            self.camera.fov *= 0.999**delta
+            self.camera.fov *= 0.999 ** delta
         else:
-            self.camera.pos.z = self.camera.pos.z * 0.999**delta
+            self.camera.pos.z = self.camera.pos.z * 0.999 ** delta
         self.update()
 
     def readQImage(self):
@@ -238,6 +367,7 @@ import warnings
 import traceback
 import sys
 
+
 def formatException(exctype, value, tb, skip=0):
     """Return a list of formatted exception strings.
 
@@ -248,7 +378,7 @@ def formatException(exctype, value, tb, skip=0):
     signal.
     """
     lines = traceback.format_exception(exctype, value, tb)
-    lines = [lines[0]] + traceback.format_stack()[:-(skip+1)] + ['  --- exception caught here ---\n'] + lines[1:]
+    lines = [lines[0]] + traceback.format_stack()[:-(skip + 1)] + ['  --- exception caught here ---\n'] + lines[1:]
     return lines
 
 
@@ -257,7 +387,7 @@ def getExc(indent=4, prefix='|  ', skip=1):
     lines2 = []
     for l in lines:
         lines2.extend(l.strip('\n').split('\n'))
-    lines3 = [" "*indent + prefix + l for l in lines2]
+    lines3 = [" " * indent + prefix + l for l in lines2]
     return '\n'.join(lines3)
 
 
@@ -272,6 +402,7 @@ def printExc(msg='', indent=4, prefix='|'):
 
 if __name__ == '__main__':
     import sys
+
     app = QtWidgets.QApplication(sys.argv)
     win = GLViewWidget(None)
     win.show()
