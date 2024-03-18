@@ -45,10 +45,16 @@ class GLView(GLViewWidget):
         )
 
         # -- model
+        # self.model = GLModelItem(
+        #     "./pyqtOpenGL/items/resources/objects/cyborg/cyborg.obj",
+        #     lights=[self.light, self.light1, self.light2],
+        #     selectable=True
+        # ).translate(0, 2, 0)
         self.model = GLModelItem(
-            "./pyqtOpenGL/items/resources/objects/cyborg/cyborg.obj",
-            lights=[self.light, self.light1, self.light2]
-        ).translate(0, 2, 0)
+            "./pyqtOpenGL/items/resources/objects/USS-BB-63/USS-BB-63.obj",
+            lights=[self.light, self.light1, self.light2],
+            selectable=True
+        )
 
         # -- mesh
         self.mesh1 = GLInstancedMeshItem(
@@ -87,21 +93,21 @@ class GLView(GLViewWidget):
         self.grid3d1 = GL3DGridItem(grid=grid, fill=False, color=(0, 0, 0))
         self.grid3d1.setDepthValue(-1)
 
-        self.addItem(self.grid3d)
-        self.addItem(self.grid3d1)
-        self.addItem(self.text)
-        self.addItem(self.img)
-        self.addItem(self.ax)
-        self.addItem(self.ax_fixed)
-        self.addItem(self.grid)
-        self.addItem(self.scatter)
-        self.addItem(self.line)
-        self.addItem(self.box)
-        self.addItem(self.arrow)
+        # self.addItem(self.grid3d)
+        # self.addItem(self.grid3d1)
+        # self.addItem(self.text)
+        # self.addItem(self.img)
+        # self.addItem(self.ax)
+        # self.addItem(self.ax_fixed)
+        # self.addItem(self.grid)
+        # self.addItem(self.scatter)
+        # self.addItem(self.line)
+        # self.addItem(self.box)
+        # self.addItem(self.arrow)
         self.addItem(self.model)
-        self.addItem(self.surf)
-        self.addItem(self.mesh1)
-        self.addItem(self.mesh2)
+        # self.addItem(self.surf)
+        # self.addItem(self.mesh1)
+        # self.addItem(self.mesh2)
 
         timer = QtCore.QTimer(self)
         timer.timeout.connect(self.onTimeout)
