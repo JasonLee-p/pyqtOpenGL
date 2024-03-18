@@ -56,11 +56,11 @@ __all__ = ['GLGraphicsItem', 'GLOptions', 'PickColorManager']
 
 @_singleton
 class PickColorManager(dict):
+    """
+    Singleton class for managing the color assigned to each item for color recognition when picking.
+    format: { color(np.float32): itemObject(GLGraphicsItem) }
+    """
     def __init__(self, glView=None):
-        """
-        For graphics items to be selectable, each item is assigned a unique color for color recognition when picking.
-        format: { color(np.float32): itemObject }
-        """
         self.__view = glView
         super().__init__()
 
