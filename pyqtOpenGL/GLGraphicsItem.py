@@ -3,7 +3,7 @@ from OpenGL import GL
 from math import radians
 from PyQt5 import QtCore
 
-from .functions import _singleton
+from .functions import _singletons
 from .transform3d import Matrix4x4, Quaternion
 import numpy as np
 from typing import Union
