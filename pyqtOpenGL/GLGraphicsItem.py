@@ -2,6 +2,8 @@ from OpenGL.GL import *  # noqa
 from OpenGL import GL
 from math import radians
 from PyQt5 import QtCore
+
+from .functions import _singleton
 from .transform3d import Matrix4x4, Quaternion
 import numpy as np
 from typing import Union
@@ -52,18 +54,7 @@ GLOptions = {
 __all__ = ['GLGraphicsItem', 'GLOptions', 'PickColorManager']
 
 
-def singleton(cls):
-    instances = {}
-
-    def get_instance(*args, **kwargs):
-        if cls not in instances:
-            instances[cls] = cls(*args, **kwargs)
-        return instances[cls]
-
-    return get_instance
-
-
-@singleton
+@_singleton
 class PickColorManager(dict):
     def __init__(self, glView=None):
         """

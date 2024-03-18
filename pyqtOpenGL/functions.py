@@ -25,6 +25,17 @@ Colors = {
 }
 
 
+def _singleton(cls):
+    instances = {}
+
+    def get_instance(*args, **kwargs):
+        if cls not in instances:
+            instances[cls] = cls(*args, **kwargs)
+        return instances[cls]
+
+    return get_instance
+
+
 def clip_scalar(val, vmin, vmax):
     """ convenience function to avoid using np.clip for scalar values """
     return vmin if val < vmin else vmax if val > vmax else val
