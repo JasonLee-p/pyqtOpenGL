@@ -54,7 +54,7 @@ GLOptions = {
 __all__ = ['GLGraphicsItem', 'GLOptions', 'PickColorManager']
 
 
-@_singleton
+@_singletons
 class PickColorManager(dict):
     """
     Singleton class for managing the color assigned to each item for color recognition when picking.
@@ -70,7 +70,7 @@ class PickColorManager(dict):
     def setView(self, view):
         self.__view = view
 
-    def new_item(self, item):
+    def new_item(self, item) -> np.float32:
         """
         为item分配一个0-1之间的32位浮点颜色，用于拾取时的颜色识别
         Assign a color to the item for color recognition when picking
@@ -104,11 +104,19 @@ class GLGraphicsItem(QtCore.QObject):
         }
     """
 
+    selected_fragment_shader = """
+        uniform vec4 selectedColor;
+        void main() {
+            gl_FragColor = selectedColor;
+        }
+    """
+
     def __init__(
             self,
             parentItem: 'GLGraphicsItem' = None,
             depthValue: int = 0,
-            selectable=False
+            selectable=False,
+            selectColor=(0.6, 0.6, 1.0, 1.0)
     ):
         super().__init__()
         self.__parent: Union[GLGraphicsItem, None] = None
@@ -125,6 +133,7 @@ class GLGraphicsItem(QtCore.QObject):
         self.setDepthValue(depthValue)
         # 分配拾取时的颜色，用于拾取时的颜色识别，完成选择物体的功能
         self._pickColor: np.float32 = PickColorManager().new_item(self)
+        self._selectedColor = selectColor
 
     def setParentItem(self, item: 'GLGraphicsItem'):
         """Set this item's parent in the scenegraph hierarchy."""

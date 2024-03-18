@@ -132,6 +132,7 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         self._createFramebuffer(WIN_WID, WIN_HEI)
         self.select_box.initializeGL()
         glEnable(GL_MULTISAMPLE)
+        glEnable(GL_SCISSOR_TEST)
         self.addItem(self.select_box)
 
     def paintGL(self):
@@ -142,7 +143,7 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         """
         glClearColor(*self.bg_color)
         glDepthMask(GL_TRUE)
-        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT)
+        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
         self.select_box.updateGL() if self.select_box.visible() else None
         self.drawItems(pickMode=False)
 
