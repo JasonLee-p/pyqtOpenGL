@@ -61,7 +61,7 @@ class GLModelItem(GLGraphicsItem, LightMixin):
         with self.pick_shader:
             self.pick_shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
             self.pick_shader.set_uniform("model", model_matrix.glData, "mat4")
-            self.pick_shader.set_uniform("pickColor", self._pickColor, "vec3")
+            self.pick_shader.set_uniform("pickColor", self._pickColor, "float")
             for i in self._order:
                 self.meshes[i].paint(self.pick_shader)
 

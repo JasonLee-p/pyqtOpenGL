@@ -130,9 +130,8 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         """initialize OpenGL state after creating the GL context."""
         PointLight.initializeGL()
         # 创建频幕大小的帧缓冲区，这样就不需要调整缓冲区大小
-        user32 = ctypes.windll.user32
-        WIN_WID = user32.GetSystemMetrics(0)
-        WIN_HEI = user32.GetSystemMetrics(1)
+        screen = QtWidgets.QApplication.screenAt(QtGui.QCursor.pos())
+        WIN_WID, WIN_HEI = screen.size().width(), screen.size().height()
         self._createFramebuffer(WIN_WID, WIN_HEI)
         self.select_box.initializeGL()
         glEnable(GL_MULTISAMPLE)
@@ -169,18 +168,18 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         glBindFramebuffer(GL_FRAMEBUFFER, self.__framebuffer)
         self.__texture = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self.__texture)
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, None)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, width, height, 0, GL_RED, GL_FLOAT, None)
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, self.__texture, 0)
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
     def _resizeFramebuffer(self, width, height):
         glBindFramebuffer(GL_FRAMEBUFFER, self.__framebuffer)
         glBindTexture(GL_TEXTURE_2D, self.__texture)
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, None)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, width, height, 0, GL_RED, GL_FLOAT, None)
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
     def pickItems(self, x_, y_, w_, h_):
-        ratio = 1  # 为了提高渲染和拾取速度，暂将渲染视口缩小9倍
+        ratio = 2  # 为了提高渲染和拾取速度，暂将渲染视口缩小4倍
         x_, y_, w_, h_ = self._normalizeRect(x_, y_, w_, h_, ratio)
         glBindFramebuffer(GL_FRAMEBUFFER, self.__framebuffer)
         glViewport(0, 0, self.deviceWidth() // ratio, self.deviceHeight() // ratio)
@@ -193,31 +192,31 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         # 在这里设置额外的拾取参数，例如鼠标位置等
         self.drawItems(pickMode=True)
         glDisable(GL_SCISSOR_TEST)
-        pixels = glReadPixels(x_, self.deviceHeight() // ratio - y_ - h_, w_, h_, GL_RGBA, GL_UNSIGNED_BYTE)
+        pixels = glReadPixels(x_, self.deviceHeight() // ratio - y_ - h_, w_, h_, GL_RED, GL_FLOAT)
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
         glClearColor(*self.bg_color)
         glEnable(GL_MULTISAMPLE)
         glViewport(0, 0, self.deviceWidth(), self.deviceHeight())
         # 获取拾取到的物体
-        pick_data = np.frombuffer(pixels, dtype=np.uint8).reshape(h_ * w_, 4)
+        pick_data = np.frombuffer(pixels, dtype=np.float32)
         # # 保存为图片
-        # img_data = np.frombuffer(pixels, dtype=np.uint8).reshape(h_, w_, 4)
+        # img_data = np.frombuffer(pixels, dtype=np.uint8).reshape(h_, w_,
         # img_data = np.flipud(img_data)
         # import PIL.Image as Image
         # img = Image.fromarray(img_data)
         # img.save('pick.png')
-        # 去掉所有为[0.,0.,0.,0.]的数据
-        pick_data = pick_data[np.any(pick_data != 0, axis=1)]
+        # 去掉所有为0.0的数据
+        pick_data = pick_data[pick_data != 0.0]
         # 获取选中的物体
         selected_items = []
         id_set = list()
         for id_ in pick_data:
-            if tuple(id_) in id_set:
+            if id_ in id_set:
                 continue
-            item: GLGraphicsItem = PickColorManager().get(tuple(id_[0:3]))
+            item: GLGraphicsItem = PickColorManager().get(id_)
             if item:
                 selected_items.append(item)
-            id_set.append(tuple(id_))
+            id_set.append(id_)
         return selected_items
 
     def _normalizeRect(self, x_, y, w, h, ratio: int = 3):

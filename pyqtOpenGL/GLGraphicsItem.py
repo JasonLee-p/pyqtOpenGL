@@ -68,7 +68,7 @@ class PickColorManager(dict):
     def __init__(self, glView=None):
         """
         For graphics items to be selectable, each item is assigned a unique color for color recognition when picking.
-        format: { color(int): itemObject }
+        format: { color(np.float32): itemObject }
         """
         self.__view = glView
         super().__init__()
@@ -81,14 +81,14 @@ class PickColorManager(dict):
 
     def new_item(self, item):
         """
-        为item分配一个颜色，用于拾取时的颜色识别
+        为item分配一个0-1之间的32位浮点颜色，用于拾取时的颜色识别
         Assign a color to the item for color recognition when picking
         :param item:
         :return:
         """
-        color = tuple(np.random.randint(0, 256) for _ in range(3))
-        while color in self:
-            color = tuple(np.random.randint(0, 256) for _ in range(3))
+        color = np.random.rand(1).astype(np.float32)[0]
+        if color in self:
+            color = np.random.rand(1).astype(np.float32)[0]
         self[color] = item
         return color
 
@@ -107,10 +107,9 @@ class PickColorManager(dict):
 
 class GLGraphicsItem(QtCore.QObject):
     pick_fragment_shader = """
-        uniform vec3 pickColor;
+        uniform float pickColor;
         void main() {
-            gl_FragColor = vec4(pickColor / 255.0, 1.0);
-            // gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+            gl_FragColor = vec4(pickColor, 0.0, 0.0, 1.0);
         }
     """
 
@@ -134,7 +133,7 @@ class GLGraphicsItem(QtCore.QObject):
         self.setParentItem(parentItem)
         self.setDepthValue(depthValue)
         # 分配拾取时的颜色，用于拾取时的颜色识别，完成选择物体的功能
-        self._pickColor: tuple = PickColorManager().new_item(self)
+        self._pickColor: np.float32 = PickColorManager().new_item(self)
 
     def setParentItem(self, item: 'GLGraphicsItem'):
         """Set this item's parent in the scenegraph hierarchy."""
@@ -228,12 +227,7 @@ class GLGraphicsItem(QtCore.QObject):
         if self.__selectable:
             return self.__selected
         # unselectable items are only selected if their selectable parent is selected
-        if not parent:
-            return False
-        while self.__parent is not None:
-            if self.__parent.selectable():
-                return self.__parent.selected()
-        return False
+        return self.parent() is not None and self.parent().selected(parent=True)
 
     def setSelected(self, s, children=True):
         """Set the selected state of this item."""
@@ -243,20 +237,13 @@ class GLGraphicsItem(QtCore.QObject):
                 if child.selectable():
                     child.setSelected(s)
 
-    def pickColor(self, parent_layers: Union[int, bool] = True) -> tuple:
-        """Return the color used to identify this item when picking.
-        if parent_layers is True, then the color of the parent is returned if the parent is selectable."""
+    def pickColor(self, parent=True):
+        """Return the color assigned to this item for picking.
+        If it has parent, return the parent's pickColor."""
         if not self.__selectable:
-            return 0, 0, 0
-        if parent_layers is True:
-            while self.__parent is not None and self.__parent.__selectable:
-                return self.__parent._pickColor
-            return self._pickColor
-        elif parent_layers == 0 or parent_layers is False:
-            return self._pickColor
-        for i in range(parent_layers):
-            if self.__parent is not None and self.__parent.__selectable:
-                return self.__parent._pickColor
+            return np.float32(0.0)
+        if parent and self.__parent is not None and self.__parent.selectable():
+            return self.__parent.pickColor(parent=True)
         return self._pickColor
 
     def setView(self, v):
