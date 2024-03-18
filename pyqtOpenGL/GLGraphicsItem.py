@@ -109,8 +109,8 @@ class GLGraphicsItem(QtCore.QObject):
     pick_fragment_shader = """
         uniform vec3 pickColor;
         void main() {
-            // gl_FragColor = vec4(pickColor / 255.0, 1.0);
-            gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+            gl_FragColor = vec4(pickColor / 255.0, 1.0);
+            // gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
         }
     """
 
