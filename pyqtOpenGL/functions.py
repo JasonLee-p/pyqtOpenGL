@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from datetime import datetime
 from functools import update_wrapper, singledispatchmethod
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent
 
 __all__ = [
     'clip_scalar', 'mkColor', 'glColor', 'intColor', 'clip_array',
@@ -11,35 +13,23 @@ __all__ = [
 ]
 
 Colors = {
-    'b': QtGui.QColor(0, 0, 255, 255),
-    'g': QtGui.QColor(0, 255, 0, 255),
-    'r': QtGui.QColor(255, 0, 0, 255),
-    'c': QtGui.QColor(0, 255, 255, 255),
-    'm': QtGui.QColor(255, 0, 255, 255),
-    'y': QtGui.QColor(255, 255, 0, 255),
-    'k': QtGui.QColor(0, 0, 0, 255),
-    'w': QtGui.QColor(255, 255, 255, 255),
-    'd': QtGui.QColor(150, 150, 150, 255),
-    'l': QtGui.QColor(200, 200, 200, 255),
-    's': QtGui.QColor(100, 100, 150, 255),
+    'b': QtGui.QColor(0,0,255,255),
+    'g': QtGui.QColor(0,255,0,255),
+    'r': QtGui.QColor(255,0,0,255),
+    'c': QtGui.QColor(0,255,255,255),
+    'm': QtGui.QColor(255,0,255,255),
+    'y': QtGui.QColor(255,255,0,255),
+    'k': QtGui.QColor(0,0,0,255),
+    'w': QtGui.QColor(255,255,255,255),
+    'd': QtGui.QColor(150,150,150,255),
+    'l': QtGui.QColor(200,200,200,255),
+    's': QtGui.QColor(100,100,150,255),
 }
-
-
-def _singleton(cls):
-    instances = {}
-
-    def get_instance(*args, **kwargs):
-        if cls not in instances:
-            instances[cls] = cls(*args, **kwargs)
-        return instances[cls]
-
-    return get_instance
 
 
 def clip_scalar(val, vmin, vmax):
     """ convenience function to avoid using np.clip for scalar values """
     return vmin if val < vmin else vmax if val > vmax else val
-
 
 def mkColor(*args):
     """
@@ -84,15 +74,15 @@ def mkColor(*args):
             else:
                 raise ValueError(f"Unable to convert {c} to QColor")
             if len(c) == 3:
-                r = int(c[0] * 2, 16)
-                g = int(c[1] * 2, 16)
-                b = int(c[2] * 2, 16)
+                r = int(c[0]*2, 16)
+                g = int(c[1]*2, 16)
+                b = int(c[2]*2, 16)
                 a = 255
             elif len(c) == 4:
-                r = int(c[0] * 2, 16)
-                g = int(c[1] * 2, 16)
-                b = int(c[2] * 2, 16)
-                a = int(c[3] * 2, 16)
+                r = int(c[0]*2, 16)
+                g = int(c[1]*2, 16)
+                b = int(c[2]*2, 16)
+                a = int(c[3]*2, 16)
             elif len(c) == 6:
                 r = int(c[0:2], 16)
                 g = int(c[2:4], 16)
@@ -158,10 +148,10 @@ def intColor(index, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, mi
     indh = ind % hues
     indv = ind // hues
     if values > 1:
-        v = minValue + indv * ((maxValue - minValue) // (values - 1))
+        v = minValue + indv * ((maxValue-minValue) // (values-1))
     else:
         v = maxValue
-    h = minHue + (indh * (maxHue - minHue)) // hues
+    h = minHue + (indh * (maxHue-minHue)) // hues
 
     return QtGui.QColor.fromHsv(h, sat, v, alpha)
 
@@ -169,10 +159,9 @@ def intColor(index, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, mi
 # umath.clip was slower than umath.maximum(umath.minimum).
 # See https://github.com/numpy/numpy/pull/20134 for details.
 _win32_clip_workaround_needed = (
-        sys.platform == 'win32' and
-        tuple(map(int, np.__version__.split(".")[:2])) < (1, 22)
+    sys.platform == 'win32' and
+    tuple(map(int, np.__version__.split(".")[:2])) < (1, 22)
 )
-
 
 def clip_array(arr, vmin, vmax, out=None):
     # replacement for np.clip due to regression in
@@ -199,7 +188,6 @@ def clip_array(arr, vmin, vmax, out=None):
 
 class Filter:
     """数据滤波"""
-
     def __init__(self, data=None, alpha=0.2):
         self._data = data
         self._alpha = alpha
@@ -240,7 +228,6 @@ class dispatchmethod(singledispatchmethod):
     depending upon the type of its first argument.
     If there is no argument, use 'object' instead.
     """
-
     def __get__(self, obj, cls=None):
         def _method(*args, **kwargs):
             if len(args) > 0:
@@ -257,3 +244,7 @@ class dispatchmethod(singledispatchmethod):
         _method.register = self.register
         update_wrapper(_method, self.func)
         return _method
+
+
+def get_path() -> Path:
+    return BASE_DIR
