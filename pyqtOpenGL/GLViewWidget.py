@@ -200,12 +200,12 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         glViewport(0, 0, self.deviceWidth(), self.deviceHeight())
         # 获取拾取到的物体
         pick_data = np.frombuffer(pixels, dtype=np.uint8).reshape(h_ * w_, 4)
-        # 保存为图片
-        img_data = np.frombuffer(pixels, dtype=np.uint8).reshape(h_, w_, 4)
-        img_data = np.flipud(img_data)
-        import PIL.Image as Image
-        img = Image.fromarray(img_data)
-        img.save('pick.png')
+        # # 保存为图片
+        # img_data = np.frombuffer(pixels, dtype=np.uint8).reshape(h_, w_, 4)
+        # img_data = np.flipud(img_data)
+        # import PIL.Image as Image
+        # img = Image.fromarray(img_data)
+        # img.save('pick.png')
         # 去掉所有为[0.,0.,0.,0.]的数据
         pick_data = pick_data[np.any(pick_data != 0, axis=1)]
         # 获取选中的物体
