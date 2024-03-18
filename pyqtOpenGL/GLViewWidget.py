@@ -146,10 +146,19 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         """
         glClearColor(*self.bg_color)
         glDepthMask(GL_TRUE)
-        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
+        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT)
         self.select_box.updateGL(self.select_start, self.select_end) if self.select_box.visible() else None
         self.drawItems(pickMode=False)
-        self.__update_FPS()
+
+    # 在外部调用paintGL
+    def paintGL_outside(self):
+        """
+        在外部调用paintGL
+        """
+        self.makeCurrent()
+        self.paintGL()
+        self.doneCurrent()
+        self.parent().update() if self.parent() else self.update()
 
     def _createFramebuffer(self, width, height):
         """
@@ -170,13 +179,8 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, None)
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
-    def renderToImage(self, path):
-        self.makeCurrent()
-        self.grabFramebuffer().save(path)
-        self.doneCurrent()
-
     def pickItems(self, x_, y_, w_, h_):
-        ratio = 3  # 为了提高渲染和拾取速度，暂将渲染视口缩小9倍
+        ratio = 1  # 为了提高渲染和拾取速度，暂将渲染视口缩小9倍
         x_, y_, w_, h_ = self._normalizeRect(x_, y_, w_, h_, ratio)
         glBindFramebuffer(GL_FRAMEBUFFER, self.__framebuffer)
         glViewport(0, 0, self.deviceWidth() // ratio, self.deviceHeight() // ratio)
@@ -184,7 +188,7 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         glDisable(GL_MULTISAMPLE)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
         # 设置拾取区域
-        glScissor(x_, self.height() // ratio - y_ - h_, w_, h_)
+        glScissor(x_, self.deviceHeight() // ratio - y_ - h_, w_, h_)
         glEnable(GL_SCISSOR_TEST)
         # 在这里设置额外的拾取参数，例如鼠标位置等
         self.drawItems(pickMode=True)
@@ -196,11 +200,12 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         glViewport(0, 0, self.deviceWidth(), self.deviceHeight())
         # 获取拾取到的物体
         pick_data = np.frombuffer(pixels, dtype=np.uint8).reshape(h_ * w_, 4)
-        # # 保存为图片
-        # img_data = np.frombuffer(pixels, dtype=np.uint8).reshape(h, w, 4)
-        # img_data = np.flipud(img_data)
-        # img = Image.fromarray(img_data)
-        # img.save('pick.png')
+        # 保存为图片
+        img_data = np.frombuffer(pixels, dtype=np.uint8).reshape(h_, w_, 4)
+        img_data = np.flipud(img_data)
+        import PIL.Image as Image
+        img = Image.fromarray(img_data)
+        img.save('pick.png')
         # 去掉所有为[0.,0.,0.,0.]的数据
         pick_data = pick_data[np.any(pick_data != 0, axis=1)]
         # 获取选中的物体
@@ -270,6 +275,18 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
             for light in self.lights:
                 light.paint(self.get_proj_view_matrix())
 
+    def get_selected_item(self):
+        """
+        得到选中的物体，不改变物体的选中状态，不添加到self.selected_items中
+        """
+        self.makeCurrent()
+        size = self.select_end - self.select_start
+        selected_items = self.pickItems(self.select_start.x(), self.select_start.y(), size.x(), size.y())
+        self.paintGL()
+        self.doneCurrent()
+        self.parent().update() if self.parent() else self.update()
+        return selected_items
+
     def pixelSize(self, pos=Vector3(0, 0, 0)):
         """
         depth: z-value in global coordinate system
@@ -285,6 +302,10 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         self.press_pos = lpos
         self.last_pos = lpos
         self.cam_press_quat, self.cam_press_pos = self.camera.get_quat_pos()
+        if ev.buttons() == QtCore.Qt.MouseButton.LeftButton:
+            self.select_flag = True
+            self.select_start.setX(int(ev.localPos().x()))
+            self.select_start.setY(int(ev.localPos().y()))
 
     def mouseMoveEvent(self, ev):
         ctrl_down = (ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier)
@@ -310,14 +331,49 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         if alt_down:
             roll = diff.x() / 5
 
-        if ev.buttons() == QtCore.Qt.MouseButton.LeftButton:
+        if ev.buttons() == QtCore.Qt.MouseButton.RightButton:
             if alt_down:
                 self.camera.orbit(0, 0, roll, base=cam_quat)
             else:
                 self.camera.orbit(diff.x(), diff.y(), base=cam_quat)
         elif ev.buttons() == QtCore.Qt.MouseButton.MiddleButton:
             self.camera.pan(diff.x(), -diff.y(), 0, base=cam_pos)
+        elif ev.buttons() == QtCore.Qt.MouseButton.LeftButton:
+            self.select_box.setVisible(True)
+            self.select_end.setX(int(ev.localPos().x()))
+            self.select_end.setY(int(ev.localPos().y()))
         self.update()
+
+    def mouseReleaseEvent(self, ev):
+        ctl_down = (ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier)
+        self.select_end.setX(int(ev.localPos().x()))
+        self.select_end.setY(int(ev.localPos().y()))
+        if ev.button() == QtCore.Qt.MouseButton.LeftButton:
+            self.select_box.setVisible(False)
+            new_s_items = self.get_selected_item()  # 此函数仅用于获取选中的物体，不改变物体的选中状态
+            if not new_s_items:  # 没有选中的物体
+                if ctl_down:  # 如果按下ctrl键，不清空选中的物体
+                    return
+                # 如果不按下ctrl键，清空选中的物体
+                for it in self.selected_items:
+                    it.setSelected(False)
+                self.selected_items.clear()
+                return
+            # 如果不按下ctrl键，取两集合的交集的补集（即从选中的物体中去掉已经选中的物体）
+            if not ctl_down:
+                for it in new_s_items:
+                    if it in self.selected_items:
+                        it.setSelected(False)
+                        self.selected_items.remove(it)
+                    else:
+                        it.setSelected(True)
+                        self.selected_items.append(it)
+            # 如果按下ctrl键，取两集合相加
+            else:
+                for it in new_s_items:
+                    if it not in self.selected_items:
+                        it.setSelected(True)
+                        self.selected_items.append(it)
 
     def wheelEvent(self, ev):
         delta = ev.angleDelta().x()

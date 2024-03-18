@@ -49,6 +49,8 @@ GLOptions = {
     },
 }
 
+__all__ = ['GLGraphicsItem', 'GLOptions', 'PickColorManager']
+
 
 def singleton(cls):
     instances = {}
@@ -107,8 +109,7 @@ class GLGraphicsItem(QtCore.QObject):
     pick_fragment_shader = """
         uniform vec3 pickColor;
         void main() {
-            pickColor = pickColor / 255.0;
-            gl_FragColor = vec4(pickColor, 1.0);
+            gl_FragColor = vec4(pickColor / 255.0, 1.0);
         }
     """
 
@@ -459,6 +460,9 @@ class GLGraphicsItem(QtCore.QObject):
         pass
         # self.setupGLState()
         # raise NotImplementedError()
+
+    def paint_selected(self, model_matrix=Matrix4x4()):
+        pass
 
     def paint_pickMode(self, model_matrix=Matrix4x4()):
         """

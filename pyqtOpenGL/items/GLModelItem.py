@@ -1,5 +1,5 @@
 from pathlib import Path
-from ..GLGraphicsItem import GLGraphicsItem
+from ..GLGraphicsItem import GLGraphicsItem, PickColorManager
 from ..transform3d import Matrix4x4, Quaternion, Vector3
 from .shader import Shader
 from .MeshData import Mesh
@@ -13,13 +13,16 @@ __all__ = ['GLModelItem']
 class GLModelItem(GLGraphicsItem, LightMixin):
 
     def __init__(
-        self,
-        path,
-        lights = list(),
-        glOptions='translucent',
-        parentItem=None,
+            self,
+            path,
+            lights=None,
+            glOptions='translucent',
+            parentItem=None,
+            selectable=False
     ):
-        super().__init__(parentItem=parentItem)
+        super().__init__(parentItem=parentItem, selectable=selectable)
+        if lights is None:
+            lights = list()
         self._path = path
         self._directory = Path(path).parent
         self.setGLOptions(glOptions)
@@ -31,21 +34,36 @@ class GLModelItem(GLGraphicsItem, LightMixin):
 
     def initializeGL(self):
         self.shader = Shader(vertex_shader, light_fragment_shader)
-
+        self.pick_shader = Shader(vertex_shader, self.pick_fragment_shader)
         for m in self.meshes:
             m.initializeGL()
 
     def paint(self, model_matrix=Matrix4x4()):
-        self.setupGLState()
-        self.setupLight(self.shader)
+        if not self.selected():
+            self.setupGLState()
+            self.setupLight(self.shader)
 
-        with self.shader:
-            self.shader.set_uniform("view", self.view_matrix().glData, "mat4")
-            self.shader.set_uniform("proj", self.proj_matrix().glData, "mat4")
-            self.shader.set_uniform("model", model_matrix.glData, "mat4")
-            self.shader.set_uniform("ViewPos",self.view_pos(), "vec3")
+            with self.shader:
+                self.shader.set_uniform("view", self.view_matrix().glData, "mat4")
+                self.shader.set_uniform("proj", self.proj_matrix().glData, "mat4")
+                self.shader.set_uniform("model", model_matrix.glData, "mat4")
+                self.shader.set_uniform("ViewPos", self.view_pos(), "vec3")
+                for i in self._order:
+                    self.meshes[i].paint(self.shader)
+        else:
+            self.paint_selected(model_matrix)
+
+    def paint_selected(self, model_matrix=Matrix4x4()):
+        self.paint_pickMode(model_matrix)  # TODO: 暂时的实现
+
+    def paint_pickMode(self, model_matrix=Matrix4x4()):
+        self.setupGLState()
+        with self.pick_shader:
+            self.pick_shader.set_uniform("view", self.proj_view_matrix().glData, "mat4")
+            self.pick_shader.set_uniform("model", model_matrix.glData, "mat4")
+            self.pick_shader.set_uniform("pickColor", self._pickColor, "vec3")
             for i in self._order:
-                self.meshes[i].paint(self.shader)
+                self.meshes[i].paint(self.pick_shader)
 
     def setMaterial(self, mesh_id, material):
         self.meshes[mesh_id].setMaterial(material)

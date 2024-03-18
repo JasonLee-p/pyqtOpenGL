@@ -23,6 +23,7 @@ class GLSelectBox(GLGraphicsItem):
     def __init__(self, glOptions='ontop', parentItem=None):
         super().__init__(parentItem=None)
         self.setGLOptions(glOptions)
+        self.__ortho_matrix = Matrix4x4()
         self.vertices = np.array([
             # 顶点坐标
             -1, -1,
@@ -32,6 +33,7 @@ class GLSelectBox(GLGraphicsItem):
             -1, 1,
             -1, -1,
         ], dtype=np.float32).reshape(-1, 2)
+        self.setVisible(False)
 
     def initializeGL(self):
         self.shader = Shader(vertex_shader, fragment_shader)
@@ -51,15 +53,11 @@ class GLSelectBox(GLGraphicsItem):
         ], dtype=np.float32).reshape(-1, 2)
         self.vbo.updateData([0], [self.vertices])
 
-    def proj_matrix(self) -> Matrix4x4:
-        """
-        :return: ortho matrix
-        """
-        return Matrix4x4.ortho_matrix(0, self.view().deviceWidth(), self.view().deviceHeight(), 0, -1, 1)
-
     def paint(self, _=None):
         self.setupGLState()
-        self.shader.set_uniform("projection", self.proj_matrix().glData, "mat4")
+        self.__ortho_matrix.setToIdentity()
+        self.__ortho_matrix.ortho(0, self.view().deviceWidth(), self.view().deviceHeight(), 0, -1, 1)
+        self.shader.set_uniform("projection", self.__ortho_matrix.glData, "mat4")
         with self.shader:
             self.vao.bind()
             # paint faces
