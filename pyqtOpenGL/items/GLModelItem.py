@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from OpenGL.raw.GL.VERSION.GL_1_0 import glDepthFunc, glStencilFunc, GL_ALWAYS, glDisable, GL_DEPTH_TEST, glStencilOp, \
-    GL_KEEP, GL_REPLACE, glStencilMask, glEnable, GL_STENCIL_TEST, GL_NOTEQUAL
+    GL_KEEP, GL_REPLACE, glStencilMask, glEnable, GL_STENCIL_TEST, GL_NOTEQUAL, glClear, GL_STENCIL_BUFFER_BIT
 
 from ..GLGraphicsItem import GLGraphicsItem, PickColorManager
 from ..transform3d import Matrix4x4, Quaternion, Vector3
@@ -96,6 +96,7 @@ class GLModelItem(GLGraphicsItem, LightMixin):
 
         # 恢复深度测试和模板缓冲区
         glStencilMask(0xFF)
+        glClear(GL_STENCIL_BUFFER_BIT)
         glEnable(GL_DEPTH_TEST)
         glDisable(GL_STENCIL_TEST)
 

@@ -132,7 +132,6 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         self._createFramebuffer(WIN_WID, WIN_HEI)
         self.select_box.initializeGL()
         glEnable(GL_MULTISAMPLE)
-        glEnable(GL_SCISSOR_TEST)
         self.addItem(self.select_box)
 
     def paintGL(self):
