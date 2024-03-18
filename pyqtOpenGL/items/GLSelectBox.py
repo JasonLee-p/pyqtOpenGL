@@ -34,6 +34,8 @@ class GLSelectBox(GLGraphicsItem):
             -1, -1,
         ], dtype=np.float32).reshape(-1, 2)
         self.setVisible(False)
+        self.__selectStart = QPoint()
+        self.__selectEnd = QPoint()
 
     def initializeGL(self):
         self.shader = Shader(vertex_shader, fragment_shader)
@@ -41,15 +43,32 @@ class GLSelectBox(GLGraphicsItem):
         self.vbo = VBO([self.vertices], [[2]], usage=gl.GL_DYNAMIC_DRAW)
         self.vbo.setAttrPointer([0], attr_id=[[0]])
 
-    def updateGL(self, left_top=QPoint(0, 0), down_right=QPoint(1, 1)):
+    def setSelectStart(self, pos: QPoint):
+        self.__selectStart = pos
+
+    def setSelectEnd(self, pos: QPoint):
+        self.__selectEnd = pos
+
+    def size(self):
+        return self.__selectEnd - self.__selectStart
+
+    def start(self):
+        return self.__selectStart
+
+    def end(self):
+        return self.__selectEnd
+
+    def center(self):
+        return (self.__selectStart + self.__selectEnd) / 2
+
+    def updateGL(self):
         self.vertices = np.array([
-            # 顶点坐标
-            left_top.x(), left_top.y(),
-            down_right.x(), left_top.y(),
-            down_right.x(), down_right.y(),
-            down_right.x(), down_right.y(),
-            left_top.x(), down_right.y(),
-            left_top.x(), left_top.y(),
+            self.__selectStart.x(), self.__selectStart.y(),
+            self.__selectEnd.x(), self.__selectStart.y(),
+            self.__selectEnd.x(), self.__selectEnd.y(),
+            self.__selectEnd.x(), self.__selectEnd.y(),
+            self.__selectStart.x(), self.__selectEnd.y(),
+            self.__selectStart.x(), self.__selectStart.y()
         ], dtype=np.float32).reshape(-1, 2)
         self.vbo.updateData([0], [self.vertices])
 
@@ -87,7 +106,7 @@ uniform bool is_surface;
 out vec4 FragColor;
 
 vec4 surface_color = vec4(1.0, 1.0, 1.0, 0.1);
-vec4 border_color = vec4(1.0, 1.0, 1.0, 0.8);
+vec4 border_color = vec4(1.0, 1.0, 1.0, 0.9);
 
 void main() {
     if (is_surface) FragColor = surface_color;

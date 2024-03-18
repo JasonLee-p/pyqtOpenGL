@@ -40,9 +40,6 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         self.lights: Set[PointLight] = set()
 
         # 选择框
-        self.select_start = QPoint()
-        self.select_end = QPoint()
-        self.select_flag = False
         self.select_box = GLSelectBox()
         self.select_box.setView(self)
         self.selected_items = []  # 用于管理物体的选中状态
@@ -146,7 +143,7 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         glClearColor(*self.bg_color)
         glDepthMask(GL_TRUE)
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT)
-        self.select_box.updateGL(self.select_start, self.select_end) if self.select_box.visible() else None
+        self.select_box.updateGL() if self.select_box.visible() else None
         self.drawItems(pickMode=False)
 
     # 在外部调用paintGL
@@ -187,7 +184,7 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         glDisable(GL_MULTISAMPLE)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT)
         # 设置拾取区域
-        glScissor(x_, self.deviceHeight() // ratio - y_ - h_, w_, h_)
+        glScissor(int(x_), int(self.deviceHeight() // ratio - y_ - h_), int(w_), int(h_))
         glEnable(GL_SCISSOR_TEST)
         # 在这里设置额外的拾取参数，例如鼠标位置等
         self.drawItems(pickMode=True)
@@ -279,8 +276,8 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         得到选中的物体，不改变物体的选中状态，不添加到self.selected_items中
         """
         self.makeCurrent()
-        size = self.select_end - self.select_start
-        selected_items = self.pickItems(self.select_start.x(), self.select_start.y(), size.x(), size.y())
+        size = self.select_box.size()
+        selected_items = self.pickItems(self.select_box.start().x(), self.select_box.start().y(), size.x(), size.y())
         self.paintGL()
         self.doneCurrent()
         self.parent().update() if self.parent() else self.update()
@@ -302,9 +299,7 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         self.last_pos = lpos
         self.cam_press_quat, self.cam_press_pos = self.camera.get_quat_pos()
         if ev.buttons() == QtCore.Qt.MouseButton.LeftButton:
-            self.select_flag = True
-            self.select_start.setX(int(ev.localPos().x()))
-            self.select_start.setY(int(ev.localPos().y()))
+            self.select_box.setSelectStart(lpos)
 
     def mouseMoveEvent(self, ev):
         ctrl_down = (ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier)
@@ -339,14 +334,12 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
             self.camera.pan(diff.x(), -diff.y(), 0, base=cam_pos)
         elif ev.buttons() == QtCore.Qt.MouseButton.LeftButton:
             self.select_box.setVisible(True)
-            self.select_end.setX(int(ev.localPos().x()))
-            self.select_end.setY(int(ev.localPos().y()))
+            self.select_box.setSelectEnd(lpos)
         self.update()
 
     def mouseReleaseEvent(self, ev):
         ctl_down = (ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier)
-        self.select_end.setX(int(ev.localPos().x()))
-        self.select_end.setY(int(ev.localPos().y()))
+        self.select_box.setSelectEnd(ev.position() if hasattr(ev, 'position') else ev.localPos())
         if ev.button() == QtCore.Qt.MouseButton.LeftButton:
             self.select_box.setVisible(False)
             new_s_items = self.get_selected_item()  # 此函数仅用于获取选中的物体，不改变物体的选中状态
@@ -396,8 +389,8 @@ class GLViewWidget(QtWidgets.QOpenGLWidget):
         """
         qimage = self.grabFramebuffer()
         w, h = self.width(), self.height()
-        bytes = qimage.bits().asstring(qimage.byteCount())
-        img = np.frombuffer(bytes, np.uint8).reshape((h, w, 4))
+        bytes_ = qimage.bits().asstring(qimage.byteCount())
+        img = np.frombuffer(bytes_, np.uint8).reshape((h, w, 4))
         return cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
 
     def isCurrent(self):
