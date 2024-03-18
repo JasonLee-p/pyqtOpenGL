@@ -7,7 +7,7 @@ from functools import update_wrapper, singledispatchmethod
 
 __all__ = [
     'clip_scalar', 'mkColor', 'glColor', 'intColor', 'clip_array',
-    'Filter', 'increment_path', 'now', 'dispatchmethod', '_singleton'
+    'Filter', 'increment_path', 'now',
 ]
 
 Colors = {
